@@ -10,7 +10,8 @@
 <body class="page-dashboard">
 
 <div class="container">
-    <h3>Welcome to Week {{ weeks_participated }}, <span style="text-transform: uppercase;">{{ username }}</span></h3>
+    <h3>Welcome to Week {{ weeks_participated }}, <span style="text-transform: uppercase;">{{ username }}!</span></h3>
+    <p>Here you can access your daily and event surveys on this page.</p>
     <div>
         {% if daily_completed_today %}
             <a class="survey-link disabled-link" href="javascript:void(0);">
