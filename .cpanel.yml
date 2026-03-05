@@ -1,5 +1,6 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/cogsearch/health_moment/
-    - /bin/cp -R images $DEPLOYPATH
+  - /bin/echo "Deploying Health Moments app"
+    - /bin/mkdir -p /home/cogsearch/health_moment/tmp
+    - /usr/bin/touch /home/cogsearch/health_moment/tmp/restart.txt
