@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseline Information</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body class="page-baseline">
+<div class="container">
+    <h2>Baseline Information Collection</h2>
+    <p>Please complete both forms. Once webhook marks both as completed, you can continue to the dashboard.</p>
+
+    {% if error %}
+        <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <div class="form-block">
+        <div class="form-top">
+            <strong>Screening Survey</strong>
+            <span id="screening-status" class="status-pill {% if screening_done %}status-done{% else %}status-pending{% endif %}">
+                {% if screening_done %}Completed{% else %}Pending{% endif %}
+            </span>
+        </div>
+        <a class="form-link"
+           href="https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}"
+           target="_blank"
+           rel="noopener noreferrer">
+           Survey Link
+        </a>
+    </div>
+
+    <div class="form-block">
+        <div class="form-top">
+            <strong>Baseline Survey</strong>
+            <span id="baseline-status" class="status-pill {% if baseline_done %}status-done{% else %}status-pending{% endif %}">
+                {% if baseline_done %}Completed{% else %}Pending{% endif %}
+            </span>
+        </div>
+        <a class="form-link"
+           href="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
+           target="_blank"
+           rel="noopener noreferrer">
+           Survey Link
+        </a>
+    </div>
+
+    <form method="POST" id="baseline-form">
+        <p class="hint">Status updates automatically after completion is received by the server.</p>
+        <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
+            Continue to Dashboard
+        </button>
+    </form>
+</div>
+
+<script>
+(function () {
+    const continueBtn = document.getElementById('continue-btn');
+    const screeningStatus = document.getElementById('screening-status');
+    const baselineStatus = document.getElementById('baseline-status');
+
+    function setStatus(el, done) {
+        el.textContent = done ? 'Completed' : 'Pending';
+        el.classList.toggle('status-done', done);
+        el.classList.toggle('status-pending', !done);
+    }
+
+    function setContinueEnabled(enabled) {
+        continueBtn.disabled = !enabled;
+        continueBtn.classList.toggle('enabled', enabled);
+    }
+
+    const source = new EventSource('/baseline-status-stream');
+    source.onmessage = function (event) {
+        try {
+            const data = JSON.parse(event.data);
+            setStatus(screeningStatus, !!data.screening_completed);
+            setStatus(baselineStatus, !!data.baseline_completed);
+            setContinueEnabled(!!data.all_completed);
+        } catch (e) {
+            // Ignore malformed payloads.
+        }
+    };
+})();
+</script>
+</body>
+</html>
