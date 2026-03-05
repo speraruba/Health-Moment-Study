@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+
+<style>
+:root {
+    --primary: #2E7D6E;
+    --primary-dark: #1F5A50;
+    --bg-gradient: linear-gradient(135deg, #E8F5F2, #F6FBFA);
+    --text-dark: #2C3E3A;
+    --border-light: #DDE7E5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-gradient);
+}
+
+/* 主容器 */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+/* 标题 */
+h3 {
+    margin-top: 0;
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--text-dark);
+}
+
+h4 {
+    margin-top: 50px;
+    margin-bottom: 15px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+/* 段落 */
+p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 6px 0 14px 0;
+    color: #4B5C58;
+}
+
+/* Survey按钮样式 */
+.survey-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.25s ease;
+}
+
+.survey-link:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+/* 禁用状态 */
+.survey-link.disabled-link {
+    background-color: #cccccc;
+    color: white;
+    pointer-events: none;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Note 区块 */
+.note-section {
+    font-size: 13px;
+    background: #F5FAF8;
+    padding: 12px 15px;
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.note-section p {
+    margin: 4px 0;
+    font-size: 13px;
+}
+
+/* 表格容器（手机可横滑） */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 10px;
+    min-width: 600px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.desktop-history {
+    display: block;
+}
+
+.mobile-history {
+    display: none;
+}
+
+/* 表格样式 */
+th, td {
+    border: 1px solid var(--border-light);
+    padding: 10px;
+    text-align: center;
+}
+
+th {
+    background: #F4F8F7;
+    font-weight: 500;
+}
+
+.week-col {
+    width: 90px;
+}
+
+/* 单元格内容 */
+.cell-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.cell-content span.val {
+    min-width: 24px;
+    text-align: center;
+}
+
+.empty-box {
+    font-size: 18px;
+    color: #bbb;
+}
+
+/* 完成状态徽章 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #2E7D6E;
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Event 数字徽章 */
+.event-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: #E3F2EF;
+    color: #2E7D6E;
+}
+
+/* Event 为 0 的样式 */
+.event-badge.zero {
+    background-color: #F0F0F0;
+    color: #999;
+}
+
+.history-card {
+    background: #F8FCFB;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.history-card-day {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #4B5C58;
+    margin-bottom: 6px;
+}
+
+.history-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 手机优化 */
+@media (max-width: 768px) {
+    .container {
+        padding: 25px;
+    }
+
+    h3 {
+        font-size: 18px;
+    }
+
+    table {
+        font-size: 13px;
+    }
+
+    .desktop-history {
+        display: none;
+    }
+
+    .mobile-history {
+        display: block;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h3>Welcome to Week {{ weeks_participated }}, {{ username }}!</h3>
+    <p>You can access your daily and event surveys on this page.</p>
+
+    <div>
+        {% if daily_completed_today %}
+            <a class="survey-link disabled-link" href="javascript:void(0);">
+                Daily survey (Completed for today)
+            </a>
+        {% else %}
+            <a class="survey-link"
+               href="https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid={{ user_id }}"
+               target="_blank">
+               Daily survey
+            </a>
+        {% endif %}
+
+        <p>Complete this survey every morning.</p>
+
+        <div class="note-section">
+            <p><strong>Note:</strong></p>
+            <p>- Please complete within an hour of waking up.</p>
+            <p>- If you miss the morning window, complete it before noon using your best memory.</p>
+        </div>
+    </div>
+
+    <div>
+        <a class="survey-link"
+           href="https://illinois.qualtrics.com/jfe/form/SV_e3W7QPl58GwWKXA?uid={{ user_id }}"
+           target="_blank">
+           Event survey
+        </a>
+
+        <p>Complete this survey each time you interact with alcohol-related information.</p>
+
+        <div class="note-section">
+            <p><strong>Note:</strong></p>
+            <p>- Submit whenever relevant to your goal of changing alcohol use.</p>
+            <p>- A reminder will be sent if no submission occurs for 48 hours.</p>
+        </div>
+    </div>
+
+    <h4>History</h4>
+
+    {% set day_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+
+    <div class="desktop-history">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="week-col"></th>
+                        <th>Mon</th>
+                        <th>Tue</th>
+                        <th>Wed</th>
+                        <th>Thu</th>
+                        <th>Fri</th>
+                        <th>Sat</th>
+                        <th>Sun</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="2">Week {{ weeks_participated }}</td>
+                        {% for is_completed in daily_stats %}
+                        <td>
+                            <div class="cell-content">
+                                <span>Daily</span>
+                                <span class="val">
+                                    {% if is_completed %}
+                                        <span class="status-badge">✓</span>
+                                    {% else %}
+                                        <span class="empty-box">☐</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        {% for stat in event_stats %}
+                        <td>
+                            <div class="cell-content">
+                                <span>Event</span>
+                                {% set count = stat if stat else 0 %}
+                                <span class="event-badge {% if count == 0 %}zero{% endif %}">
+                                    {{ count }}
+                                </span>
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mobile-history">
+        {% for i in range(7) %}
+            {% set event_count = event_stats[i] if event_stats[i] else 0 %}
+            <div class="history-card">
+                <div class="history-card-day">{{ day_labels[i] }}</div>
+                <div class="history-row">
+                    <span>Daily</span>
+                    <span>
+                        {% if daily_stats[i] %}
+                            <span class="status-badge">✓</span>
+                        {% else %}
+                            <span class="empty-box">☐</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="history-row">
+                    <span>Event</span>
+                    <span class="event-badge {% if event_count == 0 %}zero{% endif %}">
+                        {{ event_count }}
+                    </span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+</body>
+</html>

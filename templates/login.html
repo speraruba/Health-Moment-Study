@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Moments Study</title>
+
+<style>
+:root {
+    --primary: #2E7D6E;
+    --primary-dark: #1F5A50;
+    --bg-gradient: linear-gradient(135deg, #E8F5F2, #F6FBFA);
+    --text-dark: #2C3E3A;
+    --border-light: #DDE7E5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-gradient);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* 卡片容器 */
+.login-box {
+    background: #ffffff;
+    width: 90%;
+    max-width: 420px;
+    padding: 50px 35px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    animation: fadeIn 0.6s ease;
+}
+
+/* 标题 */
+h2 {
+    margin: 0 0 35px 0;
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--text-dark);
+    letter-spacing: 0.5px;
+}
+
+/* 错误提示框样式 */
+.error-msg {
+    background-color: #fef2f2;
+    color: #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    font-size: 14px;
+    margin-bottom: 25px;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+/* 表单布局 */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 输入组 */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.input-group label {
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #5F6F6C;
+}
+
+.input-group input {
+    padding: 12px 14px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    transition: all 0.25s ease;
+    outline: none;
+}
+
+/* Focus效果 */
+.input-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(46,125,110,0.15);
+}
+
+/* 按钮 */
+.submit-btn {
+    margin-top: 10px;
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--primary);
+    color: white;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+/* Hover效果 */
+.submit-btn:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+.submit-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 小屏优化 */
+@media (max-width: 480px) {
+    .login-box {
+        padding: 40px 25px;
+    }
+}
+</style>
+</head>
+
+<body>
+<div class="login-box">
+    <h2>Health Moments Study</h2>
+
+    {% if error %}
+        <div class="error-msg">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST" class="form-container">
+        <div class="input-group">
+            <label for="username">Name</label>
+            <input type="text" id="username" name="username" required autofocus>
+        </div>
+        <div class="input-group">
+            <label for="user_id">Participant ID</label>
+            <input type="text" id="user_id" name="user_id" required>
+        </div>
+        <button type="submit" class="submit-btn">Log In</button>
+    </form>
+</div>
+</body>
+</html>
