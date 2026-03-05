@@ -27,6 +27,21 @@ python app.py
 
 The app starts at `http://127.0.0.1:5000` by default.
 
+### Deploy with Passenger
+This repo includes:
+- `wagi.py`: WSGI app entry (exports `application`)
+
+Typical steps:
+1. Upload project files to the server.
+2. Create/activate virtual environment and install dependencies:
+```bash
+pip install -r requirements.txt
+```
+3. Configure Passenger app root to this project folder.
+4. Set startup file to `wagi.py`.
+5. Update database connection in `app.py` for production.
+6. Restart Passenger app.
+
 ---
 
 ## 中文
@@ -55,3 +70,18 @@ python app.py
 ```
 
 默认访问地址：`http://127.0.0.1:5000`。
+
+### 使用 Passenger 部署
+仓库已包含：
+- `wagi.py`：WSGI 入口（导出 `application`）
+
+常见部署步骤：
+1. 将项目文件上传到服务器。
+2. 创建/激活虚拟环境并安装依赖：
+```bash
+pip install -r requirements.txt
+```
+3. 在 Passenger 中将应用根目录设置为本项目目录。
+4. 启动文件设置为 `wagi.py`。
+5. 按生产环境修改 `app.py` 中数据库连接配置。
+6. 重启 Passenger 应用。
