@@ -1,0 +1,5 @@
+deployment:
+  tasks:
+    - /bin/echo "Deploying Flask app via cPanel Git"
+    - /bin/mkdir -p tmp
+    - /usr/bin/touch tmp/restart.txt
