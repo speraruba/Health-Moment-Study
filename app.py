@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'
 
 # 数据库配置
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost:3306/Health_Moment'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost:3306/cogsearch_health_moment'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
