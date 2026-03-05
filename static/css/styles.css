@@ -125,6 +125,83 @@ body.page-login .submit-btn:active {
     box-shadow: none;
 }
 
+body.page-login.modal-open {
+    overflow: hidden;
+}
+
+body.page-login .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 36, 33, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 999;
+}
+
+body.page-login .modal-backdrop[hidden] {
+    display: none !important;
+}
+
+body.page-login .confirm-modal {
+    width: min(100%, 460px);
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+    text-align: left;
+}
+
+body.page-login .confirm-modal h3 {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    line-height: 1.3;
+    color: var(--text-dark);
+}
+
+body.page-login .confirm-modal p {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #3f4f4c;
+}
+
+body.page-login .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+body.page-login .modal-btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+body.page-login .modal-btn.primary {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+body.page-login .modal-btn.primary:hover {
+    background: var(--primary-dark);
+}
+
+body.page-login .modal-btn.secondary {
+    background: #ffffff;
+    border-color: #c7d7d3;
+    color: #2e403c;
+}
+
+body.page-login .modal-btn.secondary:hover {
+    background: #f3f8f7;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -289,6 +366,14 @@ body.page-dashboard .survey-link {
 body.page-baseline .form-link:hover,
 body.page-dashboard .survey-link:hover {
     background-color: var(--primary-dark);
+}
+
+body.page-baseline .form-link.disabled-link {
+    background-color: #cccccc;
+    color: #ffffff;
+    pointer-events: none;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 body.page-baseline .status-pill {
@@ -557,5 +642,26 @@ body.page-dashboard .history-row:last-child {
 
     body.page-login .form-container {
         gap: 14px;
+    }
+
+    body.page-login .confirm-modal {
+        padding: 18px;
+        border-radius: 12px;
+    }
+
+    body.page-login .confirm-modal h3 {
+        font-size: 20px;
+    }
+
+    body.page-login .confirm-modal p {
+        font-size: 15px;
+    }
+
+    body.page-login .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    body.page-login .modal-btn {
+        width: 100%;
     }
 }

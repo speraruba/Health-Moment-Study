@@ -17,7 +17,7 @@
         </div>
     {% endif %}
 
-    <form method="POST" class="form-container">
+    <form method="POST" class="form-container" id="login-form">
         <div class="input-group">
             <label for="username">Name</label>
             <input type="text" id="username" name="username" required autofocus>
@@ -26,8 +26,110 @@
             <label for="user_id">Participant ID</label>
             <input type="text" id="user_id" name="user_id" required>
         </div>
-        <button type="submit" class="submit-btn">Log In</button>
+        <button type="submit" class="submit-btn" id="login-submit-btn">Log In</button>
     </form>
 </div>
+
+<div class="modal-backdrop" id="new-user-modal" hidden>
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="new-user-title" aria-describedby="new-user-desc">
+        <h3 id="new-user-title">Create New User?</h3>
+        <p id="new-user-desc">This Participant ID was not found. Do you want to create a new user and continue?</p>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn secondary" id="cancel-create-user">Cancel</button>
+            <button type="button" class="modal-btn primary" id="confirm-create-user">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const form = document.getElementById('login-form');
+    const usernameInput = document.getElementById('username');
+    const userIdInput = document.getElementById('user_id');
+    const modal = document.getElementById('new-user-modal');
+    const cancelBtn = document.getElementById('cancel-create-user');
+    const confirmBtn = document.getElementById('confirm-create-user');
+    let bypassCheck = false;
+    modal.hidden = true;
+
+    function openModal() {
+        modal.hidden = false;
+        document.body.classList.add('modal-open');
+        confirmBtn.focus();
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        document.body.classList.remove('modal-open');
+    }
+
+    function resetAfterCancel() {
+        closeModal();
+        form.reset();
+        usernameInput.focus();
+        bypassCheck = false;
+    }
+
+    form.addEventListener('submit', async function (event) {
+        if (bypassCheck) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (!form.reportValidity()) {
+            return;
+        }
+
+        const userId = userIdInput.value.trim();
+        if (!userId) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/user-exists?user_id=' + encodeURIComponent(userId), {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!res.ok) {
+                openModal();
+                return;
+            }
+
+            const data = await res.json();
+            if (data && data.exists === true) {
+                bypassCheck = true;
+                form.submit();
+                return;
+            }
+
+            openModal();
+        } catch (e) {
+            openModal();
+        }
+    });
+
+    confirmBtn.addEventListener('click', function () {
+        closeModal();
+        bypassCheck = true;
+        form.submit();
+    });
+
+    cancelBtn.addEventListener('click', resetAfterCancel);
+
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            resetAfterCancel();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !modal.hidden) {
+            resetAfterCancel();
+        }
+    });
+})();
+</script>
 </body>
 </html>

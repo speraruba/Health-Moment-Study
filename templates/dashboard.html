@@ -10,8 +10,7 @@
 <body class="page-dashboard">
 
 <div class="container">
-    <h3>Welcome to Week {{ weeks_participated }}, {{ username }}!</h3>
-
+    <h3>Welcome to Week {{ weeks_participated }}, <span style="text-transform: uppercase;">{{ username }}</span></h3>
     <div>
         {% if daily_completed_today %}
             <a class="survey-link disabled-link" href="javascript:void(0);">
@@ -21,7 +20,7 @@
             <a class="survey-link"
                href="https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid={{ user_id }}"
                target="_blank">
-               Daily survey
+               Start Daily Survey
             </a>
         {% endif %}
 
@@ -38,7 +37,7 @@
         <a class="survey-link"
            href="https://illinois.qualtrics.com/jfe/form/SV_e3W7QPl58GwWKXA?uid={{ user_id }}"
            target="_blank">
-           Event survey
+           Start Event Survey
         </a>
 
         <p>Complete this survey each time you interact with alcohol-related information.</p>
@@ -52,7 +51,7 @@
 
     <h4>History</h4>
 
-    {% set day_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+    {% set day_labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
 
     <div class="desktop-history">
         <div class="table-wrapper">
@@ -60,13 +59,13 @@
                 <thead>
                     <tr>
                         <th class="week-col"></th>
-                        <th>Mon</th>
-                        <th>Tue</th>
-                        <th>Wed</th>
-                        <th>Thu</th>
-                        <th>Fri</th>
-                        <th>Sat</th>
-                        <th>Sun</th>
+                        <th>Monday</th>
+                        <th>Tuesday</th>
+                        <th>Wednesday</th>
+                        <th>Thursday</th>
+                        <th>Friday</th>
+                        <th>Saturday</th>
+                        <th>Sunday</th>
                     </tr>
                 </thead>
                 <tbody>

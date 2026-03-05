@@ -23,11 +23,14 @@
                 {% if screening_done %}Completed{% else %}Pending{% endif %}
             </span>
         </div>
-        <a class="form-link"
-           href="https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}"
-           target="_blank"
-           rel="noopener noreferrer">
-           Survey Link
+        <a id="screening-link"
+           class="form-link {% if screening_done %}disabled-link{% endif %}"
+           href="{% if screening_done %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}{% endif %}"
+           data-url="https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}"
+           {% if not screening_done %}target="_blank"{% endif %}
+           rel="noopener noreferrer"
+           {% if screening_done %}aria-disabled="true" tabindex="-1"{% endif %}>
+           Start Survey
         </a>
     </div>
 
@@ -38,16 +41,19 @@
                 {% if baseline_done %}Completed{% else %}Pending{% endif %}
             </span>
         </div>
-        <a class="form-link"
-           href="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
-           target="_blank"
-           rel="noopener noreferrer">
-           Survey Link
+        <a id="baseline-link"
+           class="form-link {% if baseline_done %}disabled-link{% endif %}"
+           href="{% if baseline_done %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}{% endif %}"
+           data-url="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
+           {% if not baseline_done %}target="_blank"{% endif %}
+           rel="noopener noreferrer"
+           {% if baseline_done %}aria-disabled="true" tabindex="-1"{% endif %}>
+           Start Survey
         </a>
     </div>
 
     <form method="POST" id="baseline-form">
-        <p class="hint">Status updates automatically after completion is received by the server.</p>
+        <p class="hint">If status updates did not automatically update, please refresh the page.</p>
         <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
             Continue to Dashboard
         </button>
@@ -59,6 +65,8 @@
     const continueBtn = document.getElementById('continue-btn');
     const screeningStatus = document.getElementById('screening-status');
     const baselineStatus = document.getElementById('baseline-status');
+    const screeningLink = document.getElementById('screening-link');
+    const baselineLink = document.getElementById('baseline-link');
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -71,12 +79,31 @@
         continueBtn.classList.toggle('enabled', enabled);
     }
 
+    function setSurveyLinkState(linkEl, done) {
+        if (done) {
+            linkEl.classList.add('disabled-link');
+            linkEl.setAttribute('href', 'javascript:void(0);');
+            linkEl.removeAttribute('target');
+            linkEl.setAttribute('aria-disabled', 'true');
+            linkEl.setAttribute('tabindex', '-1');
+            return;
+        }
+
+        linkEl.classList.remove('disabled-link');
+        linkEl.setAttribute('href', linkEl.dataset.url);
+        linkEl.setAttribute('target', '_blank');
+        linkEl.removeAttribute('aria-disabled');
+        linkEl.removeAttribute('tabindex');
+    }
+
     const source = new EventSource('/baseline-status-stream');
     source.onmessage = function (event) {
         try {
             const data = JSON.parse(event.data);
             setStatus(screeningStatus, !!data.screening_completed);
             setStatus(baselineStatus, !!data.baseline_completed);
+            setSurveyLinkState(screeningLink, !!data.screening_completed);
+            setSurveyLinkState(baselineLink, !!data.baseline_completed);
             setContinueEnabled(!!data.all_completed);
         } catch (e) {
             // Ignore malformed payloads.

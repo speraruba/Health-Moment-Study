@@ -178,6 +178,16 @@ def login():
     return render_template('login.html', error=error)
 
 
+@app.route('/api/user-exists')
+def user_exists():
+    user_id = request.args.get('user_id', '').strip()
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    exists = User.query.filter_by(user_id=user_id).first() is not None
+    return jsonify({"exists": exists}), 200
+
+
 @app.route('/consent', methods=['GET', 'POST'])
 def consent():
     if 'user_id' not in session:
