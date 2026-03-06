@@ -133,6 +133,14 @@
 </div>
 <script>
 (function () {
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const url = new URL(window.location.href);
+    if (browserTz && url.searchParams.get('tz') !== browserTz) {
+        url.searchParams.set('tz', browserTz);
+        window.location.replace(url.toString());
+        return;
+    }
+
     const source = new EventSource('/dashboard-stream');
     source.onmessage = function () {
         window.location.reload();

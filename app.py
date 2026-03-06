@@ -1,16 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, time
 from sqlalchemy import inspect, text
 from collections import defaultdict
 from queue import Queue, Empty
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'
 
 # 数据库配置
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost:3306/cogsearch_health_moment'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost:3306/Health_Moment'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -103,6 +104,36 @@ def publish_dashboard_update(user_id):
     }
     for subscriber in list(dashboard_subscribers.get(user_id, [])):
         subscriber.put(payload)
+
+
+def resolve_dashboard_timezone():
+    """Resolve user's dashboard timezone from query param/session; fallback to UTC."""
+    tz_name = request.args.get('tz', '').strip()
+    if tz_name:
+        try:
+            tz = ZoneInfo(tz_name)
+            session['dashboard_timezone'] = tz_name
+            return tz
+        except ZoneInfoNotFoundError:
+            pass
+
+    saved_tz_name = session.get('dashboard_timezone', '')
+    if saved_tz_name:
+        try:
+            return ZoneInfo(saved_tz_name)
+        except ZoneInfoNotFoundError:
+            session.pop('dashboard_timezone', None)
+
+    return timezone.utc
+
+
+def local_day_bounds_to_utc(local_date, user_tz):
+    """Convert a local calendar day to UTC-naive datetime bounds for DB query."""
+    local_start = datetime.combine(local_date, time.min, tzinfo=user_tz)
+    local_end = local_start + timedelta(days=1)
+    utc_start = local_start.astimezone(timezone.utc).replace(tzinfo=None)
+    utc_end = local_end.astimezone(timezone.utc).replace(tzinfo=None)
+    return utc_start, utc_end
 
 
 with app.app_context():
@@ -368,32 +399,32 @@ def dashboard():
         session.clear()
         return redirect(url_for('login'))
 
-    # 使用当天日期计算
-    today = datetime.utcnow().date()
-    days_participated = (today - user.start_date).days
+    user_tz = resolve_dashboard_timezone()
+    local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
+    days_participated = max(0, (local_today - user.start_date).days)
     weeks_participated = (days_participated // 7) + 1
 
-    start_of_week = today - timedelta(days=today.weekday())
+    start_of_week = local_today - timedelta(days=local_today.weekday())
 
     daily_stats = []
     event_stats = []
 
     for i in range(7):
         current_day = start_of_week + timedelta(days=i)
-        next_day = current_day + timedelta(days=1)
+        day_start_utc, day_end_utc = local_day_bounds_to_utc(current_day, user_tz)
 
         # 统计周一到周日每一天的数据
         daily_today = DailyResponse.query.filter(
             DailyResponse.user_id == current_uid,
-            DailyResponse.timestamp >= current_day,
-            DailyResponse.timestamp < next_day,
+            DailyResponse.timestamp >= day_start_utc,
+            DailyResponse.timestamp < day_end_utc,
             DailyResponse.status == 'completed'
         ).all()
 
         event_today = EventResponse.query.filter(
             EventResponse.user_id == current_uid,
-            EventResponse.timestamp >= current_day,
-            EventResponse.timestamp < next_day,
+            EventResponse.timestamp >= day_start_utc,
+            EventResponse.timestamp < day_end_utc,
             EventResponse.status == 'completed'
         ).all()
 
@@ -404,10 +435,11 @@ def dashboard():
         event_stats.append(str(event_count) if event_count > 0 else '')
 
     # 【新增逻辑】：单独检查“今天”是否已经完成了 daily 问卷
+    today_start_utc, tomorrow_start_utc = local_day_bounds_to_utc(local_today, user_tz)
     daily_completed_today = DailyResponse.query.filter(
         DailyResponse.user_id == current_uid,
-        DailyResponse.timestamp >= today,
-        DailyResponse.timestamp < today + timedelta(days=1),
+        DailyResponse.timestamp >= today_start_utc,
+        DailyResponse.timestamp < tomorrow_start_utc,
         DailyResponse.status == 'completed'
     ).first() is not None
 

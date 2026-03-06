@@ -1,6 +1,0 @@
----
-deployment:
-  tasks:
-  - /bin/echo "Deploying Health Moments app"
-    - /bin/mkdir -p /home/cogsearch/health_moment/tmp
-    - /usr/bin/touch /home/cogsearch/health_moment/tmp/restart.txt
