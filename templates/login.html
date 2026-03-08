@@ -49,6 +49,7 @@
     const modal = document.getElementById('new-user-modal');
     const cancelBtn = document.getElementById('cancel-create-user');
     const confirmBtn = document.getElementById('confirm-create-user');
+    const userExistsUrl = {{ url_for('auth.user_exists') | tojson }};
     let bypassCheck = false;
     modal.hidden = true;
 
@@ -87,7 +88,9 @@
         }
 
         try {
-            const res = await fetch('/api/user-exists?user_id=' + encodeURIComponent(userId), {
+            const requestUrl = new URL(userExistsUrl, window.location.origin);
+            requestUrl.searchParams.set('user_id', userId);
+            const res = await fetch(requestUrl.toString(), {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' }
             });

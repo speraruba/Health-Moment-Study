@@ -6,7 +6,7 @@ from mysql.connector import errorcode
 from models import User
 from services.time_service import current_utc_timestamp
 
-
+# Local version
 def get_db_connection():
     return mysql.connector.connect(
         host='localhost',

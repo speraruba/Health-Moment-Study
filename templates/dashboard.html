@@ -135,6 +135,7 @@
 (function () {
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const url = new URL(window.location.href);
+    const dashboardStatusUrl = {{ url_for('dashboard.dashboard_status') | tojson }};
     if (browserTz && url.searchParams.get('tz') !== browserTz) {
         url.searchParams.set('tz', browserTz);
         window.location.replace(url.toString());
@@ -150,7 +151,7 @@
 
     async function refreshDashboardState() {
         try {
-            const response = await fetch('/dashboard-status', {
+            const response = await fetch(dashboardStatusUrl, {
                 headers: {
                     'Accept': 'application/json'
                 },

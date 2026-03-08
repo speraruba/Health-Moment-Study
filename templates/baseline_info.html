@@ -67,6 +67,7 @@
     const baselineStatus = document.getElementById('baseline-status');
     const screeningLink = document.getElementById('screening-link');
     const baselineLink = document.getElementById('baseline-link');
+    const baselineStatusUrl = {{ url_for('auth.baseline_status') | tojson }};
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -98,7 +99,7 @@
 
     async function refreshStatus() {
         try {
-            const response = await fetch('/baseline-status', {
+            const response = await fetch(baselineStatusUrl, {
                 headers: {
                     'Accept': 'application/json'
                 },
