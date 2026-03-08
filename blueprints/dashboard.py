@@ -2,7 +2,7 @@ from queue import Queue
 
 from flask import Blueprint, Response, jsonify, redirect, render_template, session, url_for
 
-from models import User
+from services.db_service import get_user_by_id
 from services.dashboard_service import build_dashboard_context
 from services.sse_service import dashboard_subscribers, stream_sse
 
@@ -16,7 +16,7 @@ def dashboard_stream():
         return jsonify({"error": "Unauthorized"}), 401
 
     current_uid = session['user_id']
-    user = User.query.filter_by(user_id=current_uid).first()
+    user = get_user_by_id(current_uid)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -39,7 +39,7 @@ def dashboard():
     if session.get('pending_baseline_user_id') == current_uid:
         return redirect(url_for('auth.baseline_info'))
 
-    user = User.query.filter_by(user_id=current_uid).first()
+    user = get_user_by_id(current_uid)
     if not user:
         session.clear()
         return redirect(url_for('auth.login'))
@@ -51,4 +51,3 @@ def dashboard():
         username=user.username,
         **dashboard_context
     )
-

@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from queue import Empty
 
-from models import User
+from services.db_service import get_user_by_id
 from services.session_service import build_baseline_status_payload
 from services.time_service import current_utc_timestamp
 
@@ -31,7 +31,7 @@ def stream_sse(subscriber, subscriber_map, user_id, initial_payload=None):
 
 
 def publish_baseline_status(user_id):
-    user = User.query.filter_by(user_id=user_id).first()
+    user = get_user_by_id(user_id)
     if not user:
         return
 
@@ -47,4 +47,3 @@ def publish_dashboard_update(user_id):
     }
     for subscriber in list(dashboard_subscribers.get(user_id, [])):
         subscriber.put(payload)
-

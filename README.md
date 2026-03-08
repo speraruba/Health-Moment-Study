@@ -10,21 +10,19 @@
 
 ### Tech stack
 - Flask
-- Flask-SQLAlchemy
-- PyMySQL
+- mysql-connector-python
 - MySQL
 
 ### Current project structure
 ```text
 app.py                    # app factory + blueprint registration
-extensions.py             # shared Flask extensions (db)
-models.py                 # SQLAlchemy models
+models.py                 # lightweight data models
 blueprints/
   auth.py                 # login/consent/baseline/status routes
   dashboard.py            # dashboard + dashboard stream routes
   webhook.py              # Qualtrics webhook route
 services/
-  db_service.py           # startup DB compatibility checks
+  db_service.py           # mysql.connector connection + SQL access
   time_service.py         # timestamp/timezone helpers
   session_service.py      # session/payload helpers
   sse_service.py          # SSE publish + stream helpers
@@ -44,7 +42,7 @@ pip install -r requirements.txt
 ### Start the app
 1. Make sure MySQL is running.
 2. Ensure database `Health_Moment` exists.
-3. Update DB connection in `app.py` if needed.
+3. Set DB environment variables if needed: `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_AUTH_PLUGIN`, `DB_CHARSET`.
 4. Run:
 ```bash
 python app.py
@@ -65,21 +63,19 @@ Default URL: `http://127.0.0.1:5001`
 
 ### 技术栈
 - Flask
-- Flask-SQLAlchemy
-- PyMySQL
+- mysql-connector-python
 - MySQL
 
 ### 当前项目结构
 ```text
 app.py                    # 应用工厂 + 蓝图注册
-extensions.py             # Flask 扩展（db）
-models.py                 # SQLAlchemy 模型
+models.py                 # 轻量数据模型
 blueprints/
   auth.py                 # 登录/同意书/baseline/状态相关路由
   dashboard.py            # dashboard 与 dashboard SSE 路由
   webhook.py              # Qualtrics webhook 路由
 services/
-  db_service.py           # 启动时数据库兼容检查
+  db_service.py           # mysql.connector 连接与 SQL 访问
   time_service.py         # 时间戳/时区辅助方法
   session_service.py      # session/payload 辅助方法
   sse_service.py          # SSE 发布与流处理
@@ -99,7 +95,7 @@ pip install -r requirements.txt
 ### 启动项目
 1. 确保 MySQL 已启动。
 2. 确保数据库 `Health_Moment` 已创建。
-3. 按需修改 `app.py` 中数据库连接配置。
+3. 按需设置数据库环境变量：`DB_USER`、`DB_PASSWORD`、`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_AUTH_PLUGIN`、`DB_CHARSET`。
 4. 运行：
 ```bash
 python app.py

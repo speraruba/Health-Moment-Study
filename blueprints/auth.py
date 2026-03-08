@@ -2,8 +2,7 @@ from queue import Queue
 
 from flask import Blueprint, Response, jsonify, redirect, render_template, request, session, url_for
 
-from extensions import db
-from models import User
+from services.db_service import create_user, get_user_by_id, update_username
 from services.session_service import build_baseline_status_payload, establish_existing_user_session
 from services.sse_service import baseline_status_subscribers, stream_sse
 
@@ -22,12 +21,11 @@ def login():
             error = "Name and Participant ID are required."
         else:
             username_input_lower = username.lower()
-            user = User.query.filter_by(user_id=user_id).first()
+            user = get_user_by_id(user_id)
 
             if user:
                 if user.username == "Unknown_User":
-                    user.username = username_input_lower
-                    db.session.commit()
+                    user = update_username(user_id, username_input_lower)
                     establish_existing_user_session(user)
                     return redirect(url_for('dashboard.dashboard'))
 
@@ -37,9 +35,7 @@ def login():
                     establish_existing_user_session(user)
                     return redirect(url_for('dashboard.dashboard'))
             else:
-                new_user = User(user_id=user_id, username=username_input_lower)
-                db.session.add(new_user)
-                db.session.commit()
+                create_user(user_id, username_input_lower)
 
                 session['user_id'] = user_id
                 session['pending_consent_user_id'] = user_id
@@ -55,7 +51,7 @@ def user_exists():
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
 
-    exists = User.query.filter_by(user_id=user_id).first() is not None
+    exists = get_user_by_id(user_id) is not None
     return jsonify({"exists": exists}), 200
 
 
@@ -97,7 +93,7 @@ def baseline_info():
 
     current_uid = session['user_id']
     pending_uid = session.get('pending_baseline_user_id')
-    user = User.query.filter_by(user_id=current_uid).first()
+    user = get_user_by_id(current_uid)
 
     if not user:
         session.clear()
@@ -114,7 +110,7 @@ def baseline_info():
 
     error = None
     if request.method == 'POST':
-        db.session.refresh(user)
+        user = get_user_by_id(current_uid)
         if user.screening_completed and user.baseline_completed:
             session.pop('pending_baseline_user_id', None)
             return redirect(url_for('dashboard.dashboard'))
@@ -139,7 +135,7 @@ def baseline_status():
         return jsonify({"error": "Unauthorized"}), 401
 
     current_uid = session['user_id']
-    user = User.query.filter_by(user_id=current_uid).first()
+    user = get_user_by_id(current_uid)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -152,7 +148,7 @@ def baseline_status_stream():
         return jsonify({"error": "Unauthorized"}), 401
 
     current_uid = session['user_id']
-    user = User.query.filter_by(user_id=current_uid).first()
+    user = get_user_by_id(current_uid)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -168,4 +164,3 @@ def baseline_status_stream():
         ),
         mimetype='text/event-stream'
     )
-

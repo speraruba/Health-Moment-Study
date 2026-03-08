@@ -1,10 +1,9 @@
 from flask import Blueprint, jsonify, request
 
-from extensions import db
 from models import DailyResponse, EventResponse
 from services.sse_service import publish_baseline_status, publish_dashboard_update
 from services.time_service import normalize_unix_timestamp
-from services.webhook_service import get_or_create_webhook_user, record_response_if_new
+from services.webhook_service import get_or_create_webhook_user, record_response_if_new, update_user_completion
 
 
 bp = Blueprint('webhook', __name__)
@@ -31,15 +30,13 @@ def qualtrics_webhook():
 
     if survey_type == 'screening':
         if status == 'completed' and not user.screening_completed:
-            user.screening_completed = True
-            db.session.commit()
+            update_user_completion(user_id, 'screening_completed')
             publish_baseline_status(user_id)
         return jsonify({"message": "Screening status recorded"}), 200
 
     if survey_type == 'baseline':
         if status == 'completed' and not user.baseline_completed:
-            user.baseline_completed = True
-            db.session.commit()
+            update_user_completion(user_id, 'baseline_completed')
             publish_baseline_status(user_id)
         return jsonify({"message": "Baseline status recorded"}), 200
 
@@ -57,4 +54,3 @@ def qualtrics_webhook():
         return jsonify({"message": "Data recorded successfully"}), 200
 
     return jsonify({"error": "Invalid survey_type"}), 400
-
