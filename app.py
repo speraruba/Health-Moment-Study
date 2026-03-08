@@ -119,16 +119,90 @@ def ensure_users_completion_columns():
         db.session.commit()
 
 
+def build_baseline_status_payload(user):
+    screening_completed = bool(user.screening_completed)
+    baseline_completed = bool(user.baseline_completed)
+    return {
+        "screening_completed": screening_completed,
+        "baseline_completed": baseline_completed,
+        "all_completed": screening_completed and baseline_completed,
+    }
+
+
+def sync_pending_baseline_session(user):
+    if user.screening_completed and user.baseline_completed:
+        session.pop('pending_baseline_user_id', None)
+    else:
+        session['pending_baseline_user_id'] = user.user_id
+
+
+def establish_existing_user_session(user):
+    session['user_id'] = user.user_id
+    session.pop('pending_consent_user_id', None)
+    sync_pending_baseline_session(user)
+
+
+def get_or_create_webhook_user(user_id):
+    user = User.query.filter_by(user_id=user_id).first()
+    if user:
+        return user
+    user = User(user_id=user_id, username="Unknown_User")
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+def stream_sse(subscriber, subscriber_map, user_id, initial_payload=None):
+    try:
+        if initial_payload is not None:
+            yield f"data: {json.dumps(initial_payload)}\n\n"
+
+        while True:
+            try:
+                payload = subscriber.get(timeout=30)
+                yield f"data: {json.dumps(payload)}\n\n"
+            except Empty:
+                yield ": ping\n\n"
+    finally:
+        listeners = subscriber_map.get(user_id, [])
+        if subscriber in listeners:
+            listeners.remove(subscriber)
+        if not listeners:
+            subscriber_map.pop(user_id, None)
+
+
+def record_response_if_new(model, user_id, response_id, status, response_timestamp):
+    existing_response = model.query.filter_by(response_id=response_id).first()
+    if existing_response:
+        return False
+
+    db.session.add(
+        model(
+            user_id=user_id,
+            response_id=response_id,
+            status=status,
+            timestamp=response_timestamp
+        )
+    )
+    db.session.commit()
+    return True
+
+
+def count_completed_responses(model, user_id, start_ts, end_ts):
+    return model.query.filter(
+        model.user_id == user_id,
+        model.timestamp >= start_ts,
+        model.timestamp < end_ts,
+        model.status == 'completed'
+    ).count()
+
+
 def publish_baseline_status(user_id):
     user = User.query.filter_by(user_id=user_id).first()
     if not user:
         return
 
-    payload = {
-        "screening_completed": bool(user.screening_completed),
-        "baseline_completed": bool(user.baseline_completed),
-        "all_completed": bool(user.screening_completed and user.baseline_completed)
-    }
+    payload = build_baseline_status_payload(user)
 
     for subscriber in list(baseline_status_subscribers.get(user_id, [])):
         subscriber.put(payload)
@@ -206,12 +280,7 @@ def login():
                 if user.username == "Unknown_User":
                     user.username = username_input_lower
                     db.session.commit()
-                    session['user_id'] = user.user_id
-                    session.pop('pending_consent_user_id', None)
-                    if user.screening_completed and user.baseline_completed:
-                        session.pop('pending_baseline_user_id', None)
-                    else:
-                        session['pending_baseline_user_id'] = user.user_id
+                    establish_existing_user_session(user)
                     return redirect(url_for('dashboard'))
 
                 # 正常校验：校验该输入的 username(小写) 和数据库中的 username(小写) 是否一致
@@ -220,12 +289,7 @@ def login():
                     error = "The name does not match this ID. Please try again."
                 else:
                     # 如果一致，通过校验，允许登录
-                    session['user_id'] = user.user_id
-                    session.pop('pending_consent_user_id', None)
-                    if user.screening_completed and user.baseline_completed:
-                        session.pop('pending_baseline_user_id', None)
-                    else:
-                        session['pending_baseline_user_id'] = user.user_id
+                    establish_existing_user_session(user)
                     return redirect(url_for('dashboard'))
 
             else:
@@ -340,13 +404,7 @@ def baseline_status():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    screening_done = bool(user.screening_completed)
-    baseline_done = bool(user.baseline_completed)
-    return jsonify({
-        "screening_completed": screening_done,
-        "baseline_completed": baseline_done,
-        "all_completed": screening_done and baseline_done
-    }), 200
+    return jsonify(build_baseline_status_payload(user)), 200
 
 
 @app.route('/baseline-status-stream')
@@ -362,30 +420,15 @@ def baseline_status_stream():
     subscriber = Queue()
     baseline_status_subscribers[current_uid].append(subscriber)
 
-    def stream():
-        try:
-            initial_payload = {
-                "screening_completed": bool(user.screening_completed),
-                "baseline_completed": bool(user.baseline_completed),
-                "all_completed": bool(user.screening_completed and user.baseline_completed)
-            }
-            yield f"data: {json.dumps(initial_payload)}\n\n"
-
-            while True:
-                try:
-                    payload = subscriber.get(timeout=30)
-                    yield f"data: {json.dumps(payload)}\n\n"
-                except Empty:
-                    # keep-alive ping for proxies/connections
-                    yield ": ping\n\n"
-        finally:
-            listeners = baseline_status_subscribers.get(current_uid, [])
-            if subscriber in listeners:
-                listeners.remove(subscriber)
-            if not listeners:
-                baseline_status_subscribers.pop(current_uid, None)
-
-    return Response(stream(), mimetype='text/event-stream')
+    return Response(
+        stream_sse(
+            subscriber,
+            baseline_status_subscribers,
+            current_uid,
+            initial_payload=build_baseline_status_payload(user)
+        ),
+        mimetype='text/event-stream'
+    )
 
 
 @app.route('/dashboard-stream')
@@ -401,22 +444,10 @@ def dashboard_stream():
     subscriber = Queue()
     dashboard_subscribers[current_uid].append(subscriber)
 
-    def stream():
-        try:
-            while True:
-                try:
-                    payload = subscriber.get(timeout=30)
-                    yield f"data: {json.dumps(payload)}\n\n"
-                except Empty:
-                    yield ": ping\n\n"
-        finally:
-            listeners = dashboard_subscribers.get(current_uid, [])
-            if subscriber in listeners:
-                listeners.remove(subscriber)
-            if not listeners:
-                dashboard_subscribers.pop(current_uid, None)
-
-    return Response(stream(), mimetype='text/event-stream')
+    return Response(
+        stream_sse(subscriber, dashboard_subscribers, current_uid),
+        mimetype='text/event-stream'
+    )
 
 
 @app.route('/dashboard')
@@ -451,35 +482,17 @@ def dashboard():
         current_day = start_of_week + timedelta(days=i)
         day_start_ts, day_end_ts = local_day_bounds_to_utc_timestamps(current_day, user_tz)
 
-        # 统计周一到周日每一天的数据
-        daily_today = DailyResponse.query.filter(
-            DailyResponse.user_id == current_uid,
-            DailyResponse.timestamp >= day_start_ts,
-            DailyResponse.timestamp < day_end_ts,
-            DailyResponse.status == 'completed'
-        ).all()
+        daily_count = count_completed_responses(DailyResponse, current_uid, day_start_ts, day_end_ts)
+        event_count = count_completed_responses(EventResponse, current_uid, day_start_ts, day_end_ts)
 
-        event_today = EventResponse.query.filter(
-            EventResponse.user_id == current_uid,
-            EventResponse.timestamp >= day_start_ts,
-            EventResponse.timestamp < day_end_ts,
-            EventResponse.status == 'completed'
-        ).all()
-
-        has_daily = len(daily_today) > 0
-        daily_stats.append(has_daily)
-
-        event_count = len(event_today)
+        daily_stats.append(daily_count > 0)
         event_stats.append(str(event_count) if event_count > 0 else '')
 
     # 【新增逻辑】：单独检查“今天”是否已经完成了 daily 问卷
     today_start_ts, tomorrow_start_ts = local_day_bounds_to_utc_timestamps(local_today, user_tz)
-    daily_completed_today = DailyResponse.query.filter(
-        DailyResponse.user_id == current_uid,
-        DailyResponse.timestamp >= today_start_ts,
-        DailyResponse.timestamp < tomorrow_start_ts,
-        DailyResponse.status == 'completed'
-    ).first() is not None
+    daily_completed_today = (
+        count_completed_responses(DailyResponse, current_uid, today_start_ts, tomorrow_start_ts) > 0
+    )
 
     return render_template('dashboard.html',
                            user_id=current_uid,
@@ -512,12 +525,7 @@ def qualtrics_webhook():
         return jsonify({"error": "Missing required fields"}), 400
 
     # 检查用户是否存在（满足外键约束）
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        new_user = User(user_id=user_id, username="Unknown_User")
-        db.session.add(new_user)
-        db.session.commit()
-        user = new_user
+    user = get_or_create_webhook_user(user_id)
 
     # 根据 survey_type 分别写入不同的表
     if survey_type == 'screening':
@@ -534,30 +542,16 @@ def qualtrics_webhook():
             publish_baseline_status(user_id)
         return jsonify({"message": "Baseline status recorded"}), 200
 
-    elif survey_type == 'daily':
-        existing_response = DailyResponse.query.filter_by(response_id=response_id).first()
-        if not existing_response:
-            new_response = DailyResponse(
-                user_id=user_id,
-                response_id=response_id,
-                status=status,
-                timestamp=response_timestamp
-            )
-            db.session.add(new_response)
-            db.session.commit()
-            publish_dashboard_update(user_id)
-
-    elif survey_type == 'event':
-        existing_response = EventResponse.query.filter_by(response_id=response_id).first()
-        if not existing_response:
-            new_response = EventResponse(
-                user_id=user_id,
-                response_id=response_id,
-                status=status,
-                timestamp=response_timestamp
-            )
-            db.session.add(new_response)
-            db.session.commit()
+    elif survey_type in {'daily', 'event'}:
+        response_model = DailyResponse if survey_type == 'daily' else EventResponse
+        was_inserted = record_response_if_new(
+            response_model,
+            user_id=user_id,
+            response_id=response_id,
+            status=status,
+            response_timestamp=response_timestamp
+        )
+        if was_inserted:
             publish_dashboard_update(user_id)
     else:
         return jsonify({"error": "Invalid survey_type"}), 400
