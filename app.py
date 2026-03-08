@@ -19,6 +19,42 @@ baseline_status_subscribers = defaultdict(list)
 dashboard_subscribers = defaultdict(list)
 
 
+def current_utc_timestamp():
+    return int(datetime.now(timezone.utc).timestamp())
+
+
+def normalize_unix_timestamp(value):
+    """Normalize webhook time input to unix timestamp (seconds)."""
+    if value is None:
+        return current_utc_timestamp()
+
+    if isinstance(value, (int, float)):
+        ts = float(value)
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return current_utc_timestamp()
+
+        try:
+            ts = float(raw)
+        except ValueError:
+            iso_raw = raw.replace('Z', '+00:00')
+            try:
+                dt = datetime.fromisoformat(iso_raw)
+            except ValueError:
+                return current_utc_timestamp()
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return int(dt.astimezone(timezone.utc).timestamp())
+    else:
+        return current_utc_timestamp()
+
+    # Qualtrics side sometimes sends milliseconds.
+    if ts > 1_000_000_000_000:
+        ts = ts / 1000
+    return int(ts)
+
+
 # ================= 数据库模型 =================
 
 class User(db.Model):
@@ -26,7 +62,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(50), unique=True, nullable=False)
     username = db.Column(db.String(100), nullable=False)
-    start_date = db.Column(db.Date, default=datetime.utcnow().date)
+    # 用户注册时间（UTC 秒级时间戳）
+    start_date = db.Column(db.BigInteger, nullable=False, default=current_utc_timestamp)
     screening_completed = db.Column(db.Boolean, nullable=False, default=False)
     baseline_completed = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -45,7 +82,7 @@ class DailyResponse(db.Model):
 
     response_id = db.Column(db.String(100), unique=True, nullable=False)
     status = db.Column(db.String(20), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.BigInteger, nullable=False, default=current_utc_timestamp)
 
 
 # 拆分表 2：活动打卡表
@@ -58,7 +95,7 @@ class EventResponse(db.Model):
 
     response_id = db.Column(db.String(100), unique=True, nullable=False)
     status = db.Column(db.String(20), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.BigInteger, nullable=False, default=current_utc_timestamp)
 
 
 # 创建表
@@ -100,7 +137,7 @@ def publish_baseline_status(user_id):
 def publish_dashboard_update(user_id):
     payload = {
         "updated": True,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": current_utc_timestamp()
     }
     for subscriber in list(dashboard_subscribers.get(user_id, [])):
         subscriber.put(payload)
@@ -127,13 +164,13 @@ def resolve_dashboard_timezone():
     return timezone.utc
 
 
-def local_day_bounds_to_utc(local_date, user_tz):
-    """Convert a local calendar day to UTC-naive datetime bounds for DB query."""
+def local_day_bounds_to_utc_timestamps(local_date, user_tz):
+    """Convert a local calendar day to UTC timestamp bounds for DB query."""
     local_start = datetime.combine(local_date, time.min, tzinfo=user_tz)
     local_end = local_start + timedelta(days=1)
-    utc_start = local_start.astimezone(timezone.utc).replace(tzinfo=None)
-    utc_end = local_end.astimezone(timezone.utc).replace(tzinfo=None)
-    return utc_start, utc_end
+    utc_start_ts = int(local_start.astimezone(timezone.utc).timestamp())
+    utc_end_ts = int(local_end.astimezone(timezone.utc).timestamp())
+    return utc_start_ts, utc_end_ts
 
 
 with app.app_context():
@@ -401,7 +438,8 @@ def dashboard():
 
     user_tz = resolve_dashboard_timezone()
     local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
-    days_participated = max(0, (local_today - user.start_date).days)
+    start_local_date = datetime.fromtimestamp(user.start_date, timezone.utc).astimezone(user_tz).date()
+    days_participated = max(0, (local_today - start_local_date).days)
     weeks_participated = (days_participated // 7) + 1
 
     start_of_week = local_today - timedelta(days=local_today.weekday())
@@ -411,20 +449,20 @@ def dashboard():
 
     for i in range(7):
         current_day = start_of_week + timedelta(days=i)
-        day_start_utc, day_end_utc = local_day_bounds_to_utc(current_day, user_tz)
+        day_start_ts, day_end_ts = local_day_bounds_to_utc_timestamps(current_day, user_tz)
 
         # 统计周一到周日每一天的数据
         daily_today = DailyResponse.query.filter(
             DailyResponse.user_id == current_uid,
-            DailyResponse.timestamp >= day_start_utc,
-            DailyResponse.timestamp < day_end_utc,
+            DailyResponse.timestamp >= day_start_ts,
+            DailyResponse.timestamp < day_end_ts,
             DailyResponse.status == 'completed'
         ).all()
 
         event_today = EventResponse.query.filter(
             EventResponse.user_id == current_uid,
-            EventResponse.timestamp >= day_start_utc,
-            EventResponse.timestamp < day_end_utc,
+            EventResponse.timestamp >= day_start_ts,
+            EventResponse.timestamp < day_end_ts,
             EventResponse.status == 'completed'
         ).all()
 
@@ -435,11 +473,11 @@ def dashboard():
         event_stats.append(str(event_count) if event_count > 0 else '')
 
     # 【新增逻辑】：单独检查“今天”是否已经完成了 daily 问卷
-    today_start_utc, tomorrow_start_utc = local_day_bounds_to_utc(local_today, user_tz)
+    today_start_ts, tomorrow_start_ts = local_day_bounds_to_utc_timestamps(local_today, user_tz)
     daily_completed_today = DailyResponse.query.filter(
         DailyResponse.user_id == current_uid,
-        DailyResponse.timestamp >= today_start_utc,
-        DailyResponse.timestamp < tomorrow_start_utc,
+        DailyResponse.timestamp >= today_start_ts,
+        DailyResponse.timestamp < tomorrow_start_ts,
         DailyResponse.status == 'completed'
     ).first() is not None
 
@@ -464,6 +502,9 @@ def qualtrics_webhook():
 
     user_id = data.get('user_id')
     response_id = data.get('response_id')
+    response_timestamp = normalize_unix_timestamp(
+        data.get('timestamp') or data.get('recorded_at') or data.get('recordedDate')
+    )
     survey_type = str(data.get('survey_type', '')).strip().lower()
     status = str(data.get('status', '')).strip().lower()
 
@@ -499,7 +540,8 @@ def qualtrics_webhook():
             new_response = DailyResponse(
                 user_id=user_id,
                 response_id=response_id,
-                status=status
+                status=status,
+                timestamp=response_timestamp
             )
             db.session.add(new_response)
             db.session.commit()
@@ -511,7 +553,8 @@ def qualtrics_webhook():
             new_response = EventResponse(
                 user_id=user_id,
                 response_id=response_id,
-                status=status
+                status=status,
+                timestamp=response_timestamp
             )
             db.session.add(new_response)
             db.session.commit()
@@ -523,4 +566,5 @@ def qualtrics_webhook():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    #app.run(debug=True, port=5000)
+    app.run(port=5001, debug=True)
