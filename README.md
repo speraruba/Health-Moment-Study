@@ -61,10 +61,37 @@ Optional timestamp fields:
 pip install -r requirements.txt
 ```
 
+### Environment variables
+Create a `.env` file in the project root, for example:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=Health_Moment
+DB_AUTH_PLUGIN=mysql_native_password
+DB_CHARSET=utf8mb4
+```
+
+You can copy `.env.example` and adjust the values for your local or deployed database.
+The app reads `.env`, not `.env.example`.
+If a variable is missing from `.env`, the code falls back to these local defaults:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=Health_Moment
+DB_AUTH_PLUGIN=mysql_native_password
+DB_CHARSET=utf8mb4
+```
+
 ### Start the app
 1. Make sure MySQL is running.
 2. Ensure database `Health_Moment` exists.
-3. Update database credentials in `services/db_service.py` if your local MySQL settings differ from the defaults in code.
+3. Create and update `.env` with your database credentials.
 4. Run:
 ```bash
 python app.py
@@ -136,10 +163,37 @@ static/
 pip install -r requirements.txt
 ```
 
+### 环境变量
+在项目根目录创建 `.env`，例如：
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=Health_Moment
+DB_AUTH_PLUGIN=mysql_native_password
+DB_CHARSET=utf8mb4
+```
+
+可以先复制 `.env.example`，再按本地或部署环境修改。
+程序读取的是 `.env`，不是 `.env.example`。
+如果 `.env` 中缺少某个变量，代码会回退到以下本地默认值：
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=Health_Moment
+DB_AUTH_PLUGIN=mysql_native_password
+DB_CHARSET=utf8mb4
+```
+
 ### 启动项目
 1. 确保 MySQL 已启动。
 2. 确保数据库 `Health_Moment` 已创建。
-3. 如果你的本地 MySQL 配置和默认值不同，请先修改 `services/db_service.py` 中的数据库连接参数。
+3. 创建并修改 `.env` 中的数据库连接参数。
 4. 运行：
 ```bash
 python app.py

@@ -1,34 +1,27 @@
+import os
 from contextlib import closing
 
 import mysql.connector
 from mysql.connector import errorcode
+from dotenv import load_dotenv
 
 from models import User
 from services.time_service import current_utc_timestamp
 
-# Local version
+load_dotenv()
+
+
 def get_db_connection():
     return mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='root',
-        database='Health_Moment',
+        host=os.getenv('DB_HOST', 'localhost'),
+        user=os.getenv('DB_USER', 'root'),
+        password=os.getenv('DB_PASSWORD', 'root'),
+        database=os.getenv('DB_NAME', 'Health_Moment'),
+        port=int(os.getenv('DB_PORT', '3306')),
         use_unicode=True,
-        auth_plugin='mysql_native_password',
-        charset='utf8mb4',
+        auth_plugin=os.getenv('DB_AUTH_PLUGIN', 'mysql_native_password'),
+        charset=os.getenv('DB_CHARSET', 'utf8mb4'),
     )
-
-#DEPLOY VERSION
-# def get_db_connection():
-#     return mysql.connector.connect(
-#         host='localhost',
-#         user='cogsearch_hugo',
-#         password='tQf]$%%(QQ!GZb;r',
-#         database='cogsearch_health_moment',
-#         use_unicode=True,
-#         auth_plugin='mysql_native_password',
-#         charset='utf8mb4',
-#     )
 
 
 def fetch_one(query, params=None):
