@@ -1,17 +1,14 @@
-from queue import Queue
-
-from flask import Blueprint, Response, jsonify, redirect, render_template, session, url_for
+from flask import Blueprint, jsonify, redirect, render_template, session, url_for
 
 from services.db_service import get_user_by_id
 from services.dashboard_service import build_dashboard_context
-from services.sse_service import dashboard_subscribers, stream_sse
 
 
 bp = Blueprint('dashboard', __name__)
 
 
-@bp.route('/dashboard-stream')
-def dashboard_stream():
+@bp.route('/dashboard-status')
+def dashboard_status():
     if 'user_id' not in session:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -20,12 +17,7 @@ def dashboard_stream():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    subscriber = Queue()
-    dashboard_subscribers[current_uid].append(subscriber)
-    return Response(
-        stream_sse(subscriber, dashboard_subscribers, current_uid),
-        mimetype='text/event-stream'
-    )
+    return jsonify(build_dashboard_context(user, current_uid)), 200
 
 
 @bp.route('/dashboard')

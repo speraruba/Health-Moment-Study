@@ -1,8 +1,7 @@
 from services.db_service import (
     get_or_create_user,
-    insert_response,
-    response_exists,
     update_user_completion,
+    insert_response_if_new,
 )
 
 
@@ -11,14 +10,10 @@ def get_or_create_webhook_user(user_id):
 
 
 def record_response_if_new(model, user_id, response_id, status, response_timestamp):
-    if response_exists(model.table_name, response_id):
-        return False
-
-    insert_response(
+    return insert_response_if_new(
         model.table_name,
         user_id=user_id,
         response_id=response_id,
         status=status,
         response_timestamp=response_timestamp,
     )
-    return True

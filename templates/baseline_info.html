@@ -30,7 +30,7 @@
            {% if not screening_done %}target="_blank"{% endif %}
            rel="noopener noreferrer"
            {% if screening_done %}aria-disabled="true" tabindex="-1"{% endif %}>
-           Start Survey
+           Start
         </a>
     </div>
 
@@ -48,12 +48,12 @@
            {% if not baseline_done %}target="_blank"{% endif %}
            rel="noopener noreferrer"
            {% if baseline_done %}aria-disabled="true" tabindex="-1"{% endif %}>
-           Start Survey
+           Start
         </a>
     </div>
 
     <form method="POST" id="baseline-form">
-        <p class="hint">If status updates did not automatically update, please refresh the page.</p>
+        <p class="hint">Survey status checks automatically every few seconds.</p>
         <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
             Continue to Dashboard
         </button>
@@ -96,19 +96,30 @@
         linkEl.removeAttribute('tabindex');
     }
 
-    const source = new EventSource('/baseline-status-stream');
-    source.onmessage = function (event) {
+    async function refreshStatus() {
         try {
-            const data = JSON.parse(event.data);
+            const response = await fetch('/baseline-status', {
+                headers: {
+                    'Accept': 'application/json'
+                },
+                cache: 'no-store'
+            });
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
             setStatus(screeningStatus, !!data.screening_completed);
             setStatus(baselineStatus, !!data.baseline_completed);
             setSurveyLinkState(screeningLink, !!data.screening_completed);
             setSurveyLinkState(baselineLink, !!data.baseline_completed);
             setContinueEnabled(!!data.all_completed);
         } catch (e) {
-            // Ignore malformed payloads.
+            // Ignore transient polling failures.
         }
-    };
+    }
+
+    refreshStatus();
+    window.setInterval(refreshStatus, 5000);
 })();
 </script>
 </body>

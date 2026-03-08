@@ -1,6 +1,7 @@
 from contextlib import closing
 
 import mysql.connector
+from mysql.connector import errorcode
 
 from models import User
 from services.time_service import current_utc_timestamp
@@ -16,6 +17,18 @@ def get_db_connection():
         auth_plugin='mysql_native_password',
         charset='utf8mb4',
     )
+
+#DEPLOY VERSION
+# def get_db_connection():
+#     return mysql.connector.connect(
+#         host='localhost',
+#         user='cogsearch_hugo',
+#         password='tQf]$%%(QQ!GZb;r',
+#         database='cogsearch_health_moment',
+#         use_unicode=True,
+#         auth_plugin='mysql_native_password',
+#         charset='utf8mb4',
+#     )
 
 
 def fetch_one(query, params=None):
@@ -38,6 +51,14 @@ def execute(query, params=None):
             cursor.execute(query, params or ())
             connection.commit()
             return cursor.lastrowid
+
+
+def execute_with_rowcount(query, params=None):
+    with closing(get_db_connection()) as connection:
+        with closing(connection.cursor(dictionary=True)) as cursor:
+            cursor.execute(query, params or ())
+            connection.commit()
+            return cursor.rowcount
 
 
 def initialize_database():
@@ -103,13 +124,17 @@ def get_user_by_id(user_id):
 
 def create_user(user_id, username):
     start_date = current_utc_timestamp()
-    execute(
-        """
-        INSERT INTO users (user_id, username, start_date, screening_completed, baseline_completed)
-        VALUES (%s, %s, %s, %s, %s)
-        """,
-        (user_id, username, start_date, False, False),
-    )
+    try:
+        execute(
+            """
+            INSERT INTO users (user_id, username, start_date, screening_completed, baseline_completed)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (user_id, username, start_date, False, False),
+        )
+    except mysql.connector.IntegrityError as exc:
+        if exc.errno != errorcode.ER_DUP_ENTRY:
+            raise
     return get_user_by_id(user_id)
 
 
@@ -151,6 +176,16 @@ def insert_response(table_name, user_id, response_id, status, response_timestamp
         """,
         (user_id, response_id, status, response_timestamp),
     )
+
+
+def insert_response_if_new(table_name, user_id, response_id, status, response_timestamp):
+    return execute_with_rowcount(
+        f"""
+        INSERT IGNORE INTO {table_name} (user_id, response_id, status, timestamp)
+        VALUES (%s, %s, %s, %s)
+        """,
+        (user_id, response_id, status, response_timestamp),
+    ) == 1
 
 
 def count_completed_responses(table_name, user_id, start_ts, end_ts):

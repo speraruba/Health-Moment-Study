@@ -141,10 +141,43 @@
         return;
     }
 
-    const source = new EventSource('/dashboard-stream');
-    source.onmessage = function () {
-        window.location.reload();
+    const initialState = {
+        weeks_participated: {{ weeks_participated | tojson }},
+        daily_stats: {{ daily_stats | tojson }},
+        event_stats: {{ event_stats | tojson }},
+        daily_completed_today: {{ daily_completed_today | tojson }}
     };
+
+    async function refreshDashboardState() {
+        try {
+            const response = await fetch('/dashboard-status', {
+                headers: {
+                    'Accept': 'application/json'
+                },
+                cache: 'no-store'
+            });
+            if (!response.ok) {
+                return;
+            }
+
+            const nextState = await response.json();
+            if (JSON.stringify(nextState) !== JSON.stringify(initialState)) {
+                window.location.reload();
+            }
+        } catch (e) {
+            // Ignore transient polling failures.
+        }
+    }
+
+    window.setInterval(refreshDashboardState, 15000);
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            refreshDashboardState();
+        }
+    });
+    window.addEventListener('focus', function () {
+        refreshDashboardState();
+    });
 })();
 </script>
 </body>

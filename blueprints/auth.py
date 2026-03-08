@@ -1,10 +1,7 @@
-from queue import Queue
+from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
-from flask import Blueprint, Response, jsonify, redirect, render_template, request, session, url_for
-
-from services.db_service import create_user, get_user_by_id, update_username
+from services.db_service import get_or_create_user, get_user_by_id, update_username
 from services.session_service import build_baseline_status_payload, establish_existing_user_session
-from services.sse_service import baseline_status_subscribers, stream_sse
 
 
 bp = Blueprint('auth', __name__)
@@ -35,12 +32,14 @@ def login():
                     establish_existing_user_session(user)
                     return redirect(url_for('dashboard.dashboard'))
             else:
-                create_user(user_id, username_input_lower)
-
-                session['user_id'] = user_id
-                session['pending_consent_user_id'] = user_id
-                session.pop('pending_baseline_user_id', None)
-                return redirect(url_for('auth.consent'))
+                user = get_or_create_user(user_id, username_input_lower)
+                if user.username.lower() != username_input_lower:
+                    error = "The name does not match this ID. Please try again."
+                else:
+                    session['user_id'] = user_id
+                    session['pending_consent_user_id'] = user_id
+                    session.pop('pending_baseline_user_id', None)
+                    return redirect(url_for('auth.consent'))
 
     return render_template('login.html', error=error)
 
@@ -140,27 +139,3 @@ def baseline_status():
         return jsonify({"error": "User not found"}), 404
 
     return jsonify(build_baseline_status_payload(user)), 200
-
-
-@bp.route('/baseline-status-stream')
-def baseline_status_stream():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    current_uid = session['user_id']
-    user = get_user_by_id(current_uid)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    subscriber = Queue()
-    baseline_status_subscribers[current_uid].append(subscriber)
-
-    return Response(
-        stream_sse(
-            subscriber,
-            baseline_status_subscribers,
-            current_uid,
-            initial_payload=build_baseline_status_payload(user)
-        ),
-        mimetype='text/event-stream'
-    )

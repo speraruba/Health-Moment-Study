@@ -363,9 +363,26 @@ body.page-dashboard .survey-link {
     transition: all 0.25s ease;
 }
 
+body.page-baseline .form-link {
+    min-width: 220px;
+    min-height: 48px;
+    padding: 12px 28px;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 10px 22px rgba(46, 125, 110, 0.18);
+}
+
 body.page-baseline .form-link:hover,
 body.page-dashboard .survey-link:hover {
     background-color: var(--primary-dark);
+}
+
+body.page-baseline .form-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px rgba(31, 90, 80, 0.22);
 }
 
 body.page-baseline .form-link.disabled-link {
