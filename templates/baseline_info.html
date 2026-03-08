@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
-<body class="page-baseline">
+<body class="page-baseline" data-baseline-status-url="{{ url_for('auth.baseline_status') }}">
 <div class="container">
     <h2>Baseline Information Collection</h2>
     <p>Please complete both forms. Once webhook marks both as completed, you can continue to the dashboard.</p>
@@ -25,12 +25,12 @@
         </div>
         <a id="screening-link"
            class="form-link {% if screening_done %}disabled-link{% endif %}"
-           href="{% if screening_done %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}{% endif %}"
+           href="{% if screening_done %}#{% else %}https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}{% endif %}"
            data-url="https://illinois.qualtrics.com/jfe/form/SV_6xrkw9eZYwc74qO?uid={{ user_id }}"
            {% if not screening_done %}target="_blank"{% endif %}
            rel="noopener noreferrer"
            {% if screening_done %}aria-disabled="true" tabindex="-1"{% endif %}>
-           Start
+           Start Screening Survey
         </a>
     </div>
 
@@ -43,12 +43,12 @@
         </div>
         <a id="baseline-link"
            class="form-link {% if baseline_done %}disabled-link{% endif %}"
-           href="{% if baseline_done %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}{% endif %}"
+           href="{% if baseline_done %}#{% else %}https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}{% endif %}"
            data-url="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
            {% if not baseline_done %}target="_blank"{% endif %}
            rel="noopener noreferrer"
            {% if baseline_done %}aria-disabled="true" tabindex="-1"{% endif %}>
-           Start
+           Start Baseline Survey
         </a>
     </div>
 
@@ -62,12 +62,15 @@
 
 <script>
 (function () {
+    const pageBody = document.body;
     const continueBtn = document.getElementById('continue-btn');
     const screeningStatus = document.getElementById('screening-status');
     const baselineStatus = document.getElementById('baseline-status');
     const screeningLink = document.getElementById('screening-link');
     const baselineLink = document.getElementById('baseline-link');
-    const baselineStatusUrl = {{ url_for('auth.baseline_status') | tojson }};
+    const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
+    let isPolling = false;
+    let pollTimer = null;
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -83,7 +86,7 @@
     function setSurveyLinkState(linkEl, done) {
         if (done) {
             linkEl.classList.add('disabled-link');
-            linkEl.setAttribute('href', 'javascript:void(0);');
+            linkEl.setAttribute('href', '#');
             linkEl.removeAttribute('target');
             linkEl.setAttribute('aria-disabled', 'true');
             linkEl.setAttribute('tabindex', '-1');
@@ -98,6 +101,11 @@
     }
 
     async function refreshStatus() {
+        if (isPolling) {
+            return;
+        }
+
+        isPolling = true;
         try {
             const response = await fetch(baselineStatusUrl, {
                 headers: {
@@ -105,6 +113,10 @@
                 },
                 cache: 'no-store'
             });
+            if (response.status === 401 || response.status === 404) {
+                window.location.reload();
+                return;
+            }
             if (!response.ok) {
                 return;
             }
@@ -114,13 +126,19 @@
             setSurveyLinkState(screeningLink, !!data.screening_completed);
             setSurveyLinkState(baselineLink, !!data.baseline_completed);
             setContinueEnabled(!!data.all_completed);
+            if (data.all_completed && pollTimer) {
+                window.clearInterval(pollTimer);
+                pollTimer = null;
+            }
         } catch (e) {
             // Ignore transient polling failures.
+        } finally {
+            isPolling = false;
         }
     }
 
     refreshStatus();
-    window.setInterval(refreshStatus, 5000);
+    pollTimer = window.setInterval(refreshStatus, 5000);
 })();
 </script>
 </body>

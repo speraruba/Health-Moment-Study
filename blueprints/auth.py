@@ -1,7 +1,11 @@
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 
 from services.db_service import get_or_create_user, get_user_by_id, update_username
-from services.session_service import build_baseline_status_payload, establish_existing_user_session
+from services.session_service import (
+    build_baseline_status_payload,
+    establish_existing_user_session,
+    sync_pending_baseline_session,
+)
 
 
 bp = Blueprint('auth', __name__)
@@ -138,4 +142,5 @@ def baseline_status():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    sync_pending_baseline_session(user)
     return jsonify(build_baseline_status_payload(user)), 200
