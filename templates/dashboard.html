@@ -10,20 +10,15 @@
 <body class="page-dashboard">
 
 <div class="container">
-    <h3>Welcome to Week {{ weeks_participated }}, <span style="text-transform: uppercase;">{{ username }}!</span></h3>
+    <h3>Welcome to Week <span id="week-number">{{ weeks_participated }}</span>, <span style="text-transform: uppercase;">{{ username }}!</span></h3>
     <p>Here you can access your daily and event surveys on this page.</p>
     <div>
-        {% if daily_completed_today %}
-            <a class="survey-link disabled-link" href="javascript:void(0);">
-                Daily survey (Completed for today)
-            </a>
-        {% else %}
-            <a class="survey-link"
-               href="https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid={{ user_id }}"
-               target="_blank">
-               Start Daily Survey
-            </a>
-        {% endif %}
+        <a id="daily-survey-link"
+           class="survey-link {% if daily_completed_today %}disabled-link{% endif %}"
+           href="{% if daily_completed_today %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid={{ user_id }}{% endif %}"
+           {% if not daily_completed_today %}target="_blank"{% else %}aria-disabled="true" tabindex="-1"{% endif %}>
+           {% if daily_completed_today %}Daily survey (Completed for today){% else %}Start Daily Survey{% endif %}
+        </a>
 
         <p>Complete this survey every morning.</p>
 
@@ -35,7 +30,8 @@
     </div>
 
     <div>
-        <a class="survey-link"
+        <a id="event-survey-link"
+           class="survey-link"
            href="https://illinois.qualtrics.com/jfe/form/SV_e3W7QPl58GwWKXA?uid={{ user_id }}"
            target="_blank">
            Start Event Survey
@@ -71,12 +67,12 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td rowspan="2">Week {{ weeks_participated }}</td>
+                        <td id="history-week-label" rowspan="2">Week {{ weeks_participated }}</td>
                         {% for is_completed in daily_stats %}
                         <td>
-                            <div class="cell-content">
+                            <div class="cell-content" data-daily-index="{{ loop.index0 }}">
                                 <span>Daily</span>
-                                <span class="val">
+                                <span class="val" data-daily-value>
                                     {% if is_completed %}
                                         <span class="status-badge">✓</span>
                                     {% else %}
@@ -90,10 +86,10 @@
                     <tr>
                         {% for stat in event_stats %}
                         <td>
-                            <div class="cell-content">
+                            <div class="cell-content" data-event-index="{{ loop.index0 }}">
                                 <span>Event</span>
                                 {% set count = stat if stat else 0 %}
-                                <span class="event-badge {% if count == 0 %}zero{% endif %}">
+                                <span class="event-badge {% if count == 0 %}zero{% endif %}" data-event-value>
                                     {{ count }}
                                 </span>
                             </div>
@@ -110,9 +106,9 @@
             {% set event_count = event_stats[i] if event_stats[i] else 0 %}
             <div class="history-card">
                 <div class="history-card-day">{{ day_labels[i] }}</div>
-                <div class="history-row">
+                <div class="history-row" data-mobile-daily-index="{{ i }}">
                     <span>Daily</span>
-                    <span>
+                    <span data-daily-value>
                         {% if daily_stats[i] %}
                             <span class="status-badge">✓</span>
                         {% else %}
@@ -120,9 +116,9 @@
                         {% endif %}
                     </span>
                 </div>
-                <div class="history-row">
+                <div class="history-row" data-mobile-event-index="{{ i }}">
                     <span>Event</span>
-                    <span class="event-badge {% if event_count == 0 %}zero{% endif %}">
+                    <span class="event-badge {% if event_count == 0 %}zero{% endif %}" data-event-value>
                         {{ event_count }}
                     </span>
                 </div>
@@ -148,6 +144,112 @@
         event_stats: {{ event_stats | tojson }},
         daily_completed_today: {{ daily_completed_today | tojson }}
     };
+    const currentState = { ...initialState };
+    const dailySurveyLink = document.getElementById('daily-survey-link');
+    const eventSurveyLink = document.getElementById('event-survey-link');
+    const weekNumber = document.getElementById('week-number');
+    const historyWeekLabel = document.getElementById('history-week-label');
+    const dailySurveyUrl = {{ ("https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid=" ~ user_id) | tojson }};
+    let focusPollTimer = null;
+
+    function renderDailyMarker(done) {
+        return done
+            ? '<span class="status-badge">✓</span>'
+            : '<span class="empty-box">☐</span>';
+    }
+
+    function setDailyLinkState(done) {
+        if (!dailySurveyLink) {
+            return;
+        }
+
+        dailySurveyLink.textContent = done
+            ? 'Daily survey (Completed for today)'
+            : 'Start Daily Survey';
+        dailySurveyLink.classList.toggle('disabled-link', done);
+
+        if (done) {
+            dailySurveyLink.setAttribute('href', 'javascript:void(0);');
+            dailySurveyLink.setAttribute('aria-disabled', 'true');
+            dailySurveyLink.setAttribute('tabindex', '-1');
+            dailySurveyLink.removeAttribute('target');
+        } else {
+            dailySurveyLink.setAttribute('href', dailySurveyUrl);
+            dailySurveyLink.setAttribute('target', '_blank');
+            dailySurveyLink.removeAttribute('aria-disabled');
+            dailySurveyLink.removeAttribute('tabindex');
+        }
+    }
+
+    function setHistoryState(nextState) {
+        nextState.daily_stats.forEach(function (done, index) {
+            document
+                .querySelectorAll('[data-daily-index="' + index + '"] [data-daily-value], [data-mobile-daily-index="' + index + '"] [data-daily-value]')
+                .forEach(function (node) {
+                    node.innerHTML = renderDailyMarker(!!done);
+                });
+        });
+
+        nextState.event_stats.forEach(function (value, index) {
+            const count = value ? String(value) : '0';
+            document
+                .querySelectorAll('[data-event-index="' + index + '"] [data-event-value], [data-mobile-event-index="' + index + '"] [data-event-value]')
+                .forEach(function (node) {
+                    node.textContent = count;
+                    node.classList.toggle('zero', count === '0');
+                });
+        });
+    }
+
+    function applyDashboardState(nextState) {
+        currentState.weeks_participated = nextState.weeks_participated;
+        currentState.daily_stats = nextState.daily_stats;
+        currentState.event_stats = nextState.event_stats;
+        currentState.daily_completed_today = nextState.daily_completed_today;
+        if (weekNumber) {
+            weekNumber.textContent = String(nextState.weeks_participated);
+        }
+        if (historyWeekLabel) {
+            historyWeekLabel.textContent = 'Week ' + String(nextState.weeks_participated);
+        }
+        setDailyLinkState(!!nextState.daily_completed_today);
+        setHistoryState(nextState);
+    }
+
+    function hasDashboardChanged(nextState) {
+        return JSON.stringify(nextState) !== JSON.stringify(currentState);
+    }
+
+    function startFocusPolling() {
+        if (focusPollTimer) {
+            return;
+        }
+
+        let remainingChecks = 6;
+        focusPollTimer = window.setInterval(function () {
+            refreshDashboardState();
+            remainingChecks -= 1;
+            if (remainingChecks <= 0) {
+                window.clearInterval(focusPollTimer);
+                focusPollTimer = null;
+            }
+        }, 2000);
+    }
+
+    function bindAcceleratedPolling(linkEl) {
+        if (!linkEl) {
+            return;
+        }
+
+        linkEl.addEventListener('click', function () {
+            if (linkEl.classList.contains('disabled-link')) {
+                return;
+            }
+
+            refreshDashboardState();
+            startFocusPolling();
+        });
+    }
 
     async function refreshDashboardState() {
         try {
@@ -162,22 +264,29 @@
             }
 
             const nextState = await response.json();
-            if (JSON.stringify(nextState) !== JSON.stringify(initialState)) {
-                window.location.reload();
+            if (hasDashboardChanged(nextState)) {
+                applyDashboardState(nextState);
             }
         } catch (e) {
             // Ignore transient polling failures.
         }
     }
 
-    window.setInterval(refreshDashboardState, 15000);
+    setDailyLinkState(!!currentState.daily_completed_today);
+    setHistoryState(currentState);
+    bindAcceleratedPolling(dailySurveyLink);
+    bindAcceleratedPolling(eventSurveyLink);
+
+    window.setInterval(refreshDashboardState, 5000);
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
             refreshDashboardState();
+            startFocusPolling();
         }
     });
     window.addEventListener('focus', function () {
         refreshDashboardState();
+        startFocusPolling();
     });
 })();
 </script>
