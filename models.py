@@ -11,6 +11,8 @@ class User:
     start_date: int = 0
     screening_completed: bool = False
     baseline_completed: bool = False
+    screening_id: str | None = None
+    baseline_id: str | None = None
 
     @classmethod
     def from_row(cls, row):
@@ -23,6 +25,8 @@ class User:
             start_date=row.get('start_date') or current_utc_timestamp(),
             screening_completed=bool(row.get('screening_completed')),
             baseline_completed=bool(row.get('baseline_completed')),
+            screening_id=row.get('screening_id'),
+            baseline_id=row.get('baseline_id'),
         )
 
 

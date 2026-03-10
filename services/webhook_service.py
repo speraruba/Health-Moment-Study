@@ -1,6 +1,5 @@
 from services.db_service import (
     get_or_create_user,
-    update_user_completion,
     insert_response_if_new,
 )
 

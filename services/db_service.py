@@ -63,7 +63,9 @@ def initialize_database():
             username VARCHAR(100) NOT NULL,
             start_date BIGINT NOT NULL,
             screening_completed BOOLEAN NOT NULL DEFAULT 0,
-            baseline_completed BOOLEAN NOT NULL DEFAULT 0
+            baseline_completed BOOLEAN NOT NULL DEFAULT 0,
+            screening_id VARCHAR(100) DEFAULT NULL,
+            baseline_id VARCHAR(100) DEFAULT NULL
         ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
         """
     )
@@ -109,6 +111,14 @@ def ensure_users_completion_columns():
         execute(
             "ALTER TABLE users ADD COLUMN baseline_completed BOOLEAN NOT NULL DEFAULT 0"
         )
+    if 'screening_id' not in existing_columns:
+        execute(
+            "ALTER TABLE users ADD COLUMN screening_id VARCHAR(100) DEFAULT NULL"
+        )
+    if 'baseline_id' not in existing_columns:
+        execute(
+            "ALTER TABLE users ADD COLUMN baseline_id VARCHAR(100) DEFAULT NULL"
+        )
 
 
 def get_user_by_id(user_id):
@@ -120,10 +130,18 @@ def create_user(user_id, username):
     try:
         execute(
             """
-            INSERT INTO users (user_id, username, start_date, screening_completed, baseline_completed)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO users (
+                user_id,
+                username,
+                start_date,
+                screening_completed,
+                baseline_completed,
+                screening_id,
+                baseline_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (user_id, username, start_date, False, False),
+            (user_id, username, start_date, False, False, None, None),
         )
     except mysql.connector.IntegrityError as exc:
         if exc.errno != errorcode.ER_DUP_ENTRY:
@@ -142,6 +160,21 @@ def update_user_completion(user_id, field_name, completed=True):
     execute(
         f"UPDATE users SET {field_name} = %s WHERE user_id = %s",
         (completed, user_id),
+    )
+    return get_user_by_id(user_id)
+
+
+def update_user_survey_status(user_id, survey_type, status, response_id):
+    if survey_type not in {'screening', 'baseline'}:
+        raise ValueError(f'Unsupported survey type: {survey_type}')
+    completed = status == 'completed'
+    if not completed:
+        return get_user_by_id(user_id)
+    completed_field = f"{survey_type}_completed"
+    id_field = f"{survey_type}_id"
+    execute(
+        f"UPDATE users SET {completed_field} = %s, {id_field} = %s WHERE user_id = %s",
+        (True, response_id, user_id),
     )
     return get_user_by_id(user_id)
 
