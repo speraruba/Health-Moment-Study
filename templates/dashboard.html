@@ -127,11 +127,26 @@
     </div>
 
 </div>
+<script type="application/json" id="dashboard-bootstrap">
+{{ {
+    'dashboardStatusUrl': url_for('dashboard.dashboard_status'),
+    'weeks_participated': weeks_participated,
+    'daily_stats': daily_stats,
+    'event_stats': event_stats,
+    'daily_completed_today': daily_completed_today,
+    'dailySurveyUrl': "https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid=" ~ user_id
+} | tojson }}
+</script>
 <script>
 (function () {
+    const bootstrapEl = document.getElementById('dashboard-bootstrap');
+    const bootstrap = bootstrapEl && bootstrapEl.textContent
+        ? JSON.parse(bootstrapEl.textContent)
+        : {};
+
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const url = new URL(window.location.href);
-    const dashboardStatusUrl = {{ url_for('dashboard.dashboard_status') | tojson }};
+    const dashboardStatusUrl = bootstrap.dashboardStatusUrl;
     if (browserTz && url.searchParams.get('tz') !== browserTz) {
         url.searchParams.set('tz', browserTz);
         window.location.replace(url.toString());
@@ -139,17 +154,17 @@
     }
 
     const initialState = {
-        weeks_participated: {{ weeks_participated | tojson }},
-        daily_stats: {{ daily_stats | tojson }},
-        event_stats: {{ event_stats | tojson }},
-        daily_completed_today: {{ daily_completed_today | tojson }}
+        weeks_participated: bootstrap.weeks_participated,
+        daily_stats: bootstrap.daily_stats,
+        event_stats: bootstrap.event_stats,
+        daily_completed_today: bootstrap.daily_completed_today
     };
     const currentState = { ...initialState };
     const dailySurveyLink = document.getElementById('daily-survey-link');
     const eventSurveyLink = document.getElementById('event-survey-link');
     const weekNumber = document.getElementById('week-number');
     const historyWeekLabel = document.getElementById('history-week-label');
-    const dailySurveyUrl = {{ ("https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid=" ~ user_id) | tojson }};
+    const dailySurveyUrl = bootstrap.dailySurveyUrl;
     let focusPollTimer = null;
 
     function renderDailyMarker(done) {

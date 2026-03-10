@@ -13,8 +13,11 @@ def build_dashboard_context(user, user_id):
     user_tz = resolve_dashboard_timezone()
     local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
     start_local_date = datetime.fromtimestamp(user.start_date, timezone.utc).astimezone(user_tz).date()
-    days_participated = max(0, (local_today - start_local_date).days)
-    weeks_participated = (days_participated // 7) + 1
+    # Count weeks by natural (Mon-Sun) calendar weeks in the user's timezone.
+    start_week = start_local_date - timedelta(days=start_local_date.weekday())
+    current_week = local_today - timedelta(days=local_today.weekday())
+    weeks_participated = ((current_week - start_week).days // 7) + 1
+    weeks_participated = max(1, weeks_participated)
 
     start_of_week = local_today - timedelta(days=local_today.weekday())
     daily_stats = []

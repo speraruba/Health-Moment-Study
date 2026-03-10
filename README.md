@@ -8,6 +8,11 @@
 - Dashboard provides Daily/Event Qualtrics links and weekly history
 - Qualtrics webhook updates survey completion data, and the UI polls status endpoints to refresh automatically
 
+### Dashboard week counting
+- The "Week X" shown in the dashboard/history is based on natural calendar weeks (Mon-Sun) in the user's dashboard timezone.
+- Week 1 is the calendar week that contains the participant's `start_date`; the week number increments at the next Monday 00:00 (local to the dashboard timezone).
+- Example: if a participant joins on Friday, the following Monday will show Week 2.
+
 ### Tech stack
 - Flask
 - mysql-connector-python
@@ -109,6 +114,11 @@ Default URL: `http://127.0.0.1:5001`
 - 首次登录用户先完成 Consent，再完成 Baseline 信息页，之后进入 Dashboard
 - Dashboard 提供 Daily/Event 的 Qualtrics 链接和每周历史记录
 - 通过 Qualtrics webhook 更新问卷完成状态，前端会轮询状态接口自动刷新页面
+
+### Dashboard Week 计数规则
+- Dashboard/history 中显示的 “Week X” 按自然周（周一到周日）计数，且以用户的 dashboard 时区为准。
+- 用户加入当周为 Week 1；当进入下一个周一 00:00（该时区）后，Week 自动加 1。
+- 例子：如果周五加入项目，那么到下周一就会显示 Week 2。
 
 ### 技术栈
 - Flask
