@@ -66,3 +66,13 @@ def local_day_bounds_to_utc_timestamps(local_date, user_tz):
     utc_end_ts = int(local_end.astimezone(timezone.utc).timestamp())
     return utc_start_ts, utc_end_ts
 
+
+def central_datetime_string(utc_timestamp):
+    try:
+        central_tz = ZoneInfo("America/Chicago")
+    except ZoneInfoNotFoundError:
+        central_tz = timezone.utc
+
+    utc_dt = datetime.fromtimestamp(utc_timestamp, timezone.utc)
+    central_dt = utc_dt.astimezone(central_tz)
+    return central_dt.strftime("%Y-%m-%d %H:%M:%S")

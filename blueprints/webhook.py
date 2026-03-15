@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request
 
 from models import DailyResponse, EventResponse
-from services.db_service import update_user_survey_status
+from services.db_service import get_user_by_id, update_user_survey_status
+from services.realtime_service import publish_user_event
+from services.session_service import build_baseline_status_payload
 from services.time_service import normalize_unix_timestamp
 from services.webhook_service import (
     get_or_create_webhook_user,
@@ -32,13 +34,21 @@ def qualtrics_webhook():
     user = get_or_create_webhook_user(user_id)
 
     if survey_type == 'screening':
-        if status == 'completed' and not user.screening_completed:
-            update_user_survey_status(user_id, survey_type, status, response_id)
+        if status == 'completed':
+            if not user.screening_completed:
+                update_user_survey_status(user_id, survey_type, status, response_id)
+            updated_user = get_user_by_id(user_id)
+            if updated_user:
+                publish_user_event(user_id, build_baseline_status_payload(updated_user))
         return jsonify({"message": "Screening status recorded"}), 200
 
     if survey_type == 'baseline':
-        if status == 'completed' and not user.baseline_completed:
-            update_user_survey_status(user_id, survey_type, status, response_id)
+        if status == 'completed':
+            if not user.baseline_completed:
+                update_user_survey_status(user_id, survey_type, status, response_id)
+            updated_user = get_user_by_id(user_id)
+            if updated_user:
+                publish_user_event(user_id, build_baseline_status_payload(updated_user))
         return jsonify({"message": "Baseline status recorded"}), 200
 
     if survey_type in {'daily', 'event'}:

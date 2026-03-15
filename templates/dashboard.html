@@ -48,21 +48,15 @@
 
     <h4>History</h4>
 
-    {% set day_labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-
     <div class="desktop-history">
         <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
                         <th class="week-col"></th>
-                        <th>Monday</th>
-                        <th>Tuesday</th>
-                        <th>Wednesday</th>
-                        <th>Thursday</th>
-                        <th>Friday</th>
-                        <th>Saturday</th>
-                        <th>Sunday</th>
+                        {% for label in day_labels %}
+                        <th>{{ label }}</th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>

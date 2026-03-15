@@ -4,14 +4,14 @@
 
 ### What this app does
 - Participant login with `Name + Participant ID`
-- First-time users complete Consent, then Baseline Info forms, then enter Dashboard
+- First-time users complete Consent, then Baseline survey, then enter Dashboard
 - Dashboard provides Daily/Event Qualtrics links and weekly history
-- Qualtrics webhook updates survey completion data, and the UI polls status endpoints to refresh automatically
+- Qualtrics webhook updates survey completion data, and the Baseline page uses SSE to refresh status automatically
 
 ### Dashboard week counting
-- The "Week X" shown in the dashboard/history is based on natural calendar weeks (Mon-Sun) in the user's dashboard timezone.
-- Week 1 is the calendar week that contains the participant's `start_date`; the week number increments at the next Monday 00:00 (local to the dashboard timezone).
-- Example: if a participant joins on Friday, the following Monday will show Week 2.
+- The "Week X" shown in the dashboard/history is based on 7-day blocks starting from the participant's `start_date` in the user's dashboard timezone.
+- Week 1 is the first 7 days from the start date; Week 2 is the next 7 days, and so on.
+- Example: if a participant joins on Friday, the following Friday will start Week 2.
 
 ### Tech stack
 - Flask
@@ -46,7 +46,7 @@ static/
 `POST /webhook/qualtrics` expects JSON with:
 - `user_id`
 - `response_id`
-- `survey_type`: `screening`, `baseline`, `daily`, or `event`
+- `survey_type`: `baseline`, `daily`, or `event` (`screening` is accepted for legacy data but not required)
 - `status`
 
 Optional timestamp fields:
@@ -57,7 +57,7 @@ Optional timestamp fields:
 ### Concurrency notes
 - User creation is duplicate-safe for concurrent login/webhook requests on the same `user_id`
 - Daily/event response writes are idempotent for duplicate Qualtrics deliveries with the same `response_id`
-- The frontend uses polling instead of in-memory SSE, so status refresh still works when the app is deployed with multiple workers
+- Baseline status updates are pushed via in-memory SSE, so multi-worker deployments need a shared pub/sub layer if you want real-time updates across workers
 
 ### Install dependencies
 1. (Optional) Create and activate a virtual environment.
@@ -111,14 +111,14 @@ Default URL: `http://127.0.0.1:5001`
 
 ### 功能简介
 - 使用 `姓名 + Participant ID` 登录
-- 首次登录用户先完成 Consent，再完成 Baseline 信息页，之后进入 Dashboard
+- 首次登录用户先完成 Consent，再完成 Baseline 问卷，之后进入 Dashboard
 - Dashboard 提供 Daily/Event 的 Qualtrics 链接和每周历史记录
-- 通过 Qualtrics webhook 更新问卷完成状态，前端会轮询状态接口自动刷新页面
+- 通过 Qualtrics webhook 更新问卷完成状态，Baseline 页面使用 SSE 自动刷新状态
 
 ### Dashboard Week 计数规则
-- Dashboard/history 中显示的 “Week X” 按自然周（周一到周日）计数，且以用户的 dashboard 时区为准。
-- 用户加入当周为 Week 1；当进入下一个周一 00:00（该时区）后，Week 自动加 1。
-- 例子：如果周五加入项目，那么到下周一就会显示 Week 2。
+- Dashboard/history 中显示的 “Week X” 按从 `start_date` 开始的连续 7 天为一周计数，且以用户的 dashboard 时区为准。
+- 用户加入后的前 7 天为 Week 1，之后每满 7 天 Week +1。
+- 例子：如果周五加入项目，那么到下一个周五开始 Week 2。
 
 ### 技术栈
 - Flask
@@ -153,7 +153,7 @@ static/
 `POST /webhook/qualtrics` 需要 JSON 字段：
 - `user_id`
 - `response_id`
-- `survey_type`：`screening`、`baseline`、`daily` 或 `event`
+- `survey_type`：`baseline`、`daily` 或 `event`（`screening` 为兼容历史数据，可选）
 - `status`
 
 可选时间字段：
@@ -164,7 +164,7 @@ static/
 ### 并发说明
 - 同一个 `user_id` 的并发登录或 webhook 建用户请求不会因重复创建直接报错
 - 同一个 `response_id` 的重复 Qualtrics 投递会按幂等方式处理
-- 前端已改为轮询状态接口，不依赖进程内 SSE，因此多 worker 部署下也能正常刷新状态
+- Baseline 状态使用进程内 SSE 推送，如果多 worker 部署且需要实时更新，需要接入共享的 pub/sub
 
 ### 安装依赖
 1. （可选）创建并激活虚拟环境。

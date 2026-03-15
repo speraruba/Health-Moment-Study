@@ -6,7 +6,7 @@ from mysql.connector import errorcode
 from dotenv import load_dotenv
 
 from models import User
-from services.time_service import current_utc_timestamp
+from services.time_service import central_datetime_string, current_utc_timestamp
 
 load_dotenv()
 
@@ -62,6 +62,7 @@ def initialize_database():
             user_id VARCHAR(50) NOT NULL UNIQUE,
             username VARCHAR(100) NOT NULL,
             start_date BIGINT NOT NULL,
+            start_date_central_time VARCHAR(19) DEFAULT NULL,
             screening_completed BOOLEAN NOT NULL DEFAULT 0,
             baseline_completed BOOLEAN NOT NULL DEFAULT 0,
             screening_id VARCHAR(100) DEFAULT NULL,
@@ -77,6 +78,7 @@ def initialize_database():
             response_id VARCHAR(100) NOT NULL UNIQUE,
             status VARCHAR(20) NOT NULL,
             timestamp BIGINT NOT NULL,
+            central_time VARCHAR(19) DEFAULT NULL,
             CONSTRAINT fk_daily_user_id
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
                 ON DELETE CASCADE
@@ -91,6 +93,7 @@ def initialize_database():
             response_id VARCHAR(100) NOT NULL UNIQUE,
             status VARCHAR(20) NOT NULL,
             timestamp BIGINT NOT NULL,
+            central_time VARCHAR(19) DEFAULT NULL,
             CONSTRAINT fk_event_user_id
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
                 ON DELETE CASCADE
@@ -119,6 +122,54 @@ def ensure_users_completion_columns():
         execute(
             "ALTER TABLE users ADD COLUMN baseline_id VARCHAR(100) DEFAULT NULL"
         )
+    if 'start_date_central_time' not in existing_columns:
+        execute(
+            "ALTER TABLE users ADD COLUMN start_date_central_time VARCHAR(19) DEFAULT NULL"
+        )
+    else:
+        type_info = next(
+            (column for column in columns if column['Field'] == 'start_date_central_time'),
+            None,
+        )
+        if type_info and str(type_info.get('Type', '')).lower() != 'varchar(19)':
+            execute(
+                "ALTER TABLE users MODIFY COLUMN start_date_central_time VARCHAR(19) DEFAULT NULL"
+            )
+
+    rows = fetch_all("SELECT user_id, start_date FROM users")
+    for row in rows:
+        central_date = central_datetime_string(row['start_date'])
+        execute(
+            "UPDATE users SET start_date_central_time = %s WHERE user_id = %s",
+            (central_date, row['user_id']),
+        )
+
+
+def ensure_response_central_time_columns():
+    for table_name in ("daily_responses", "event_responses"):
+        columns = fetch_all(f"SHOW COLUMNS FROM {table_name}")
+        existing_columns = {column['Field'] for column in columns}
+        if 'central_time' not in existing_columns:
+            execute(
+                f"ALTER TABLE {table_name} ADD COLUMN central_time VARCHAR(19) DEFAULT NULL"
+            )
+        else:
+            type_info = next(
+                (column for column in columns if column['Field'] == 'central_time'),
+                None,
+            )
+            if type_info and str(type_info.get('Type', '')).lower() != 'varchar(19)':
+                execute(
+                    f"ALTER TABLE {table_name} MODIFY COLUMN central_time VARCHAR(19) DEFAULT NULL"
+                )
+
+        rows = fetch_all(f"SELECT id, timestamp FROM {table_name}")
+        for row in rows:
+            central_date = central_datetime_string(row['timestamp'])
+            execute(
+                f"UPDATE {table_name} SET central_time = %s WHERE id = %s",
+                (central_date, row['id']),
+            )
 
 
 def get_user_by_id(user_id):
@@ -127,6 +178,7 @@ def get_user_by_id(user_id):
 
 def create_user(user_id, username):
     start_date = current_utc_timestamp()
+    start_date_central_time = central_datetime_string(start_date)
     try:
         execute(
             """
@@ -134,14 +186,15 @@ def create_user(user_id, username):
                 user_id,
                 username,
                 start_date,
+                start_date_central_time,
                 screening_completed,
                 baseline_completed,
                 screening_id,
                 baseline_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (user_id, username, start_date, False, False, None, None),
+            (user_id, username, start_date, start_date_central_time, False, False, None, None),
         )
     except mysql.connector.IntegrityError as exc:
         if exc.errno != errorcode.ER_DUP_ENTRY:
@@ -195,22 +248,24 @@ def response_exists(table_name, response_id):
 
 
 def insert_response(table_name, user_id, response_id, status, response_timestamp):
+    central_date = central_datetime_string(response_timestamp)
     execute(
         f"""
-        INSERT INTO {table_name} (user_id, response_id, status, timestamp)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO {table_name} (user_id, response_id, status, timestamp, central_time)
+        VALUES (%s, %s, %s, %s, %s)
         """,
-        (user_id, response_id, status, response_timestamp),
+        (user_id, response_id, status, response_timestamp, central_date),
     )
 
 
 def insert_response_if_new(table_name, user_id, response_id, status, response_timestamp):
+    central_date = central_datetime_string(response_timestamp)
     return execute_with_rowcount(
         f"""
-        INSERT IGNORE INTO {table_name} (user_id, response_id, status, timestamp)
-        VALUES (%s, %s, %s, %s)
+        INSERT IGNORE INTO {table_name} (user_id, response_id, status, timestamp, central_time)
+        VALUES (%s, %s, %s, %s, %s)
         """,
-        (user_id, response_id, status, response_timestamp),
+        (user_id, response_id, status, response_timestamp, central_date),
     ) == 1
 
 

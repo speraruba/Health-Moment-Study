@@ -1,6 +1,20 @@
-from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+import json
+import queue
+
+from flask import (
+    Blueprint,
+    Response,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    stream_with_context,
+    url_for,
+)
 
 from services.db_service import get_or_create_user, get_user_by_id, update_username
+from services.realtime_service import publish_user_event, subscribe_user, unsubscribe_user
 from services.session_service import (
     build_baseline_status_payload,
     establish_existing_user_session,
@@ -107,25 +121,22 @@ def baseline_info():
             return redirect(url_for('auth.consent'))
         return redirect(url_for('dashboard.dashboard'))
 
-    screening_done = bool(user.screening_completed)
     baseline_done = bool(user.baseline_completed)
-    all_done = screening_done and baseline_done
+    all_done = baseline_done
 
     error = None
     if request.method == 'POST':
         user = get_user_by_id(current_uid)
-        if user.screening_completed and user.baseline_completed:
+        if user.baseline_completed:
             session.pop('pending_baseline_user_id', None)
             return redirect(url_for('dashboard.dashboard'))
-        error = "Both screening and baseline forms must be completed before continuing."
-        screening_done = bool(user.screening_completed)
+        error = "The baseline survey must be completed before continuing."
         baseline_done = bool(user.baseline_completed)
-        all_done = screening_done and baseline_done
+        all_done = baseline_done
 
     return render_template(
         'baseline_info.html',
         user_id=current_uid,
-        screening_done=screening_done,
         baseline_done=baseline_done,
         all_done=all_done,
         error=error
@@ -144,3 +155,38 @@ def baseline_status():
 
     sync_pending_baseline_session(user)
     return jsonify(build_baseline_status_payload(user)), 200
+
+
+@bp.route('/baseline-status-stream')
+def baseline_status_stream():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    current_uid = session['user_id']
+    user = get_user_by_id(current_uid)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    sync_pending_baseline_session(user)
+    initial_payload = build_baseline_status_payload(user)
+    publish_user_event(current_uid, initial_payload)
+
+    def event_stream():
+        q = subscribe_user(current_uid)
+        try:
+            yield f"event: status\ndata: {json.dumps(initial_payload)}\n\n"
+            while True:
+                try:
+                    data = q.get(timeout=25)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+                    continue
+                yield f"event: status\ndata: {data}\n\n"
+        finally:
+            unsubscribe_user(current_uid, q)
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    }
+    return Response(stream_with_context(event_stream()), headers=headers, mimetype="text/event-stream")

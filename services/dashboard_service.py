@@ -13,15 +13,15 @@ def build_dashboard_context(user, user_id):
     user_tz = resolve_dashboard_timezone()
     local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
     start_local_date = datetime.fromtimestamp(user.start_date, timezone.utc).astimezone(user_tz).date()
-    # Count weeks by natural (Mon-Sun) calendar weeks in the user's timezone.
-    start_week = start_local_date - timedelta(days=start_local_date.weekday())
-    current_week = local_today - timedelta(days=local_today.weekday())
-    weeks_participated = ((current_week - start_week).days // 7) + 1
-    weeks_participated = max(1, weeks_participated)
+    # Count weeks as 7-day blocks starting from the user's start date.
+    days_since_start = (local_today - start_local_date).days
+    days_since_start = max(0, days_since_start)
+    weeks_participated = (days_since_start // 7) + 1
 
-    start_of_week = local_today - timedelta(days=local_today.weekday())
+    start_of_week = start_local_date + timedelta(days=(weeks_participated - 1) * 7)
     daily_stats = []
     event_stats = []
+    day_labels = []
 
     for i in range(7):
         current_day = start_of_week + timedelta(days=i)
@@ -31,6 +31,7 @@ def build_dashboard_context(user, user_id):
         event_count = count_completed_records(EventResponse, user_id, day_start_ts, day_end_ts)
         daily_stats.append(daily_count > 0)
         event_stats.append(str(event_count) if event_count > 0 else '')
+        day_labels.append(f"Day {i + 1} ({current_day.strftime('%A')})")
 
     today_start_ts, tomorrow_start_ts = local_day_bounds_to_utc_timestamps(local_today, user_tz)
     daily_completed_today = count_completed_records(
@@ -42,4 +43,5 @@ def build_dashboard_context(user, user_id):
         "daily_stats": daily_stats,
         "event_stats": event_stats,
         "daily_completed_today": daily_completed_today,
+        "day_labels": day_labels,
     }

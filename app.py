@@ -3,7 +3,12 @@ from flask import Flask
 from blueprints.auth import bp as auth_bp
 from blueprints.dashboard import bp as dashboard_bp
 from blueprints.webhook import bp as webhook_bp
-from services.db_service import ensure_users_completion_columns, get_db_connection, initialize_database
+from services.db_service import (
+    ensure_response_central_time_columns,
+    ensure_users_completion_columns,
+    get_db_connection,
+    initialize_database,
+)
 
 
 def create_app():
@@ -19,6 +24,7 @@ def create_app():
         connection.close()
         initialize_database()
         ensure_users_completion_columns()
+        ensure_response_central_time_columns()
 
     return app
 
