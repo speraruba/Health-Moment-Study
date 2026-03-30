@@ -55,9 +55,8 @@ def login():
                     error = "The name does not match this ID. Please try again."
                 else:
                     session['user_id'] = user_id
-                    session['pending_consent_user_id'] = user_id
-                    session.pop('pending_baseline_user_id', None)
-                    return redirect(url_for('auth.consent'))
+                    session['pending_baseline_user_id'] = user_id
+                    return redirect(url_for('auth.baseline_info'))
 
     return render_template('login.html', error=error)
 
@@ -70,37 +69,6 @@ def user_exists():
 
     exists = get_user_by_id(user_id) is not None
     return jsonify({"exists": exists}), 200
-
-
-@bp.route('/consent', methods=['GET', 'POST'])
-def consent():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-
-    current_uid = session['user_id']
-    pending_uid = session.get('pending_consent_user_id')
-    pending_baseline_uid = session.get('pending_baseline_user_id')
-
-    if pending_uid != current_uid:
-        if pending_baseline_uid == current_uid:
-            return redirect(url_for('auth.baseline_info'))
-        return redirect(url_for('dashboard.dashboard'))
-
-    error = None
-    if request.method == 'POST':
-        initial = request.form.get('initial', '').strip()
-        agreed = request.form.get('agree') == 'on'
-
-        if not initial:
-            error = "Please enter your initial before continuing."
-        elif not agreed:
-            error = "Please confirm that you have read and agree before continuing."
-        else:
-            session.pop('pending_consent_user_id', None)
-            session['pending_baseline_user_id'] = current_uid
-            return redirect(url_for('auth.baseline_info'))
-
-    return render_template('consent.html', error=error)
 
 
 @bp.route('/baseline-info', methods=['GET', 'POST'])
@@ -117,8 +85,6 @@ def baseline_info():
         return redirect(url_for('auth.login'))
 
     if pending_uid != current_uid:
-        if session.get('pending_consent_user_id') == current_uid:
-            return redirect(url_for('auth.consent'))
         return redirect(url_for('dashboard.dashboard'))
 
     baseline_done = bool(user.baseline_completed)

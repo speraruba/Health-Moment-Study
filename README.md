@@ -4,7 +4,7 @@
 
 ### What this app does
 - Participant login with `Name + Participant ID`
-- First-time users complete Consent, then Baseline survey, then enter Dashboard
+- Users review Consent on the login page, then first-time users complete the Baseline survey before entering Dashboard
 - Dashboard provides Daily/Event Qualtrics links and weekly history
 - Qualtrics webhook updates survey completion data, and the Baseline page uses SSE to refresh status automatically
 
@@ -23,7 +23,7 @@
 app.py                    # app factory + blueprint registration
 models.py                 # lightweight data models
 blueprints/
-  auth.py                 # login/consent/baseline/status routes
+  auth.py                 # login/baseline/status routes
   dashboard.py            # dashboard + dashboard status routes
   webhook.py              # Qualtrics webhook route
 services/
@@ -111,7 +111,7 @@ Default URL: `http://127.0.0.1:5001`
 
 ### 功能简介
 - 使用 `姓名 + Participant ID` 登录
-- 首次登录用户先完成 Consent，再完成 Baseline 问卷，之后进入 Dashboard
+- 用户在登录页阅读并同意 Consent，首次登录用户再完成 Baseline 问卷，之后进入 Dashboard
 - Dashboard 提供 Daily/Event 的 Qualtrics 链接和每周历史记录
 - 通过 Qualtrics webhook 更新问卷完成状态，Baseline 页面使用 SSE 自动刷新状态
 

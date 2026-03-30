@@ -18,5 +18,4 @@ def sync_pending_baseline_session(user):
 
 def establish_existing_user_session(user):
     session['user_id'] = user.user_id
-    session.pop('pending_consent_user_id', None)
     sync_pending_baseline_session(user)

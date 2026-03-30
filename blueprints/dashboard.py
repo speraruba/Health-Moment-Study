@@ -26,8 +26,6 @@ def dashboard():
         return redirect(url_for('auth.login'))
 
     current_uid = session['user_id']
-    if session.get('pending_consent_user_id') == current_uid:
-        return redirect(url_for('auth.consent'))
     if session.get('pending_baseline_user_id') == current_uid:
         return redirect(url_for('auth.baseline_info'))
 

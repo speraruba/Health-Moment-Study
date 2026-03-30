@@ -9,7 +9,12 @@
 
 <body class="page-login">
 <div class="login-box">
-    <h2>Health Moments Study</h2>
+    <div class="login-intro">
+        <h2>Health Moments Study</h2>
+        <p class="login-subtitle">
+            Enter your name and Participant ID to log in. By continuing, you confirm that you have read and agree to the consent form below.
+        </p>
+    </div>
 
     {% if error %}
         <div class="error-msg">
@@ -17,17 +22,41 @@
         </div>
     {% endif %}
 
-    <form method="POST" class="form-container" id="login-form">
-        <div class="input-group">
-            <label for="username">Name</label>
-            <input type="text" id="username" name="username" required autofocus>
+    <div class="login-layout">
+        <div class="consent-panel">
+            <h3>Consent Document</h3>
+            <p>[Bogeum Choi]</p>
+            <p>[Everyday Information Interactions Among Individuals Seeking Change in Alcohol Use Behaviors: An Ecological Momentary Assessment]</p>
+
+            <div class="consent-text">
+                <p class="section-title">Principal Investigator Name and Title</p>
+                <p>Bogeum Choi (Postdoctoral research associate)</p>
+                <p class="section-title">Department and Institution</p>
+                <p>School of Information Sciences</p>
+                <p class="section-title">Contact Information</p>
+                <p>bogeumc@illinois.edu</p>
+                <p class="section-title">CONSENT</p>
+                <p>
+                    By entering my name and Participant ID on this page, I confirm I have read the information in this
+                    consent form and have had the opportunity to ask questions. I will be given a copy of this consent
+                    form. I voluntarily agree to take part in this study.
+                </p>
+            </div>
         </div>
-        <div class="input-group">
-            <label for="user_id">Participant ID</label>
-            <input type="text" id="user_id" name="user_id" required>
-        </div>
-        <button type="submit" class="submit-btn" id="login-submit-btn">Log In</button>
-    </form>
+
+        <form method="POST" class="form-container" id="login-form">
+            <div class="input-group">
+                <label for="username">Name</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            <div class="input-group">
+                <label for="user_id">Participant ID</label>
+                <input type="text" id="user_id" name="user_id" required>
+            </div>
+            <p class="consent-note">Submitting this form means you agree to the consent document.</p>
+            <button type="submit" class="submit-btn" id="login-submit-btn">Agree and Log In</button>
+        </form>
+    </div>
 </div>
 
 <div class="modal-backdrop" id="new-user-modal" hidden>
@@ -46,12 +75,25 @@
     const form = document.getElementById('login-form');
     const usernameInput = document.getElementById('username');
     const userIdInput = document.getElementById('user_id');
+    const submitBtn = document.getElementById('login-submit-btn');
     const modal = document.getElementById('new-user-modal');
     const cancelBtn = document.getElementById('cancel-create-user');
     const confirmBtn = document.getElementById('confirm-create-user');
     const userExistsUrl = {{ url_for('auth.user_exists') | tojson }};
     let bypassCheck = false;
+    let checkingUser = false;
     modal.hidden = true;
+
+    function setCheckingState(isChecking) {
+        checkingUser = isChecking;
+        submitBtn.disabled = isChecking;
+        confirmBtn.disabled = isChecking;
+    }
+
+    function submitWithBypass() {
+        bypassCheck = true;
+        form.requestSubmit();
+    }
 
     function openModal() {
         modal.hidden = false;
@@ -64,15 +106,24 @@
         document.body.classList.remove('modal-open');
     }
 
-    function resetAfterCancel() {
-        closeModal();
-        form.reset();
-        usernameInput.focus();
+    function resetFormState() {
         bypassCheck = false;
+        setCheckingState(false);
+        closeModal();
+    }
+
+    function resetAfterCancel() {
+        resetFormState();
+        usernameInput.focus();
     }
 
     form.addEventListener('submit', async function (event) {
         if (bypassCheck) {
+            return;
+        }
+
+        if (checkingUser) {
+            event.preventDefault();
             return;
         }
 
@@ -88,10 +139,13 @@
         }
 
         try {
+            setCheckingState(true);
             const requestUrl = new URL(userExistsUrl, window.location.origin);
             requestUrl.searchParams.set('user_id', userId);
+            requestUrl.searchParams.set('_ts', Date.now().toString());
             const res = await fetch(requestUrl.toString(), {
                 method: 'GET',
+                cache: 'no-store',
                 headers: { 'Accept': 'application/json' }
             });
 
@@ -102,21 +156,21 @@
 
             const data = await res.json();
             if (data && data.exists === true) {
-                bypassCheck = true;
-                form.submit();
+                submitWithBypass();
                 return;
             }
 
             openModal();
         } catch (e) {
             openModal();
+        } finally {
+            setCheckingState(false);
         }
     });
 
     confirmBtn.addEventListener('click', function () {
         closeModal();
-        bypassCheck = true;
-        form.submit();
+        submitWithBypass();
     });
 
     cancelBtn.addEventListener('click', resetAfterCancel);
@@ -131,6 +185,13 @@
         if (event.key === 'Escape' && !modal.hidden) {
             resetAfterCancel();
         }
+    });
+
+    window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) {
+            return;
+        }
+        resetFormState();
     });
 })();
 </script>
