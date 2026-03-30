@@ -53,6 +53,7 @@
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
     let stream = null;
+    let statusPollTimer = null;
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -84,6 +85,10 @@
 
     function applyStatusUpdate(data) {
         if (!data) {
+            return;
+        }
+        if (data.reload) {
+            window.location.reload();
             return;
         }
         setStatus(baselineStatus, !!data.baseline_completed);
@@ -128,13 +133,21 @@
         });
         stream.addEventListener('error', () => {
             if (stream && stream.readyState === EventSource.CLOSED) {
-                window.location.reload();
+                connectStream();
             }
         });
     }
 
+    function startStatusPolling() {
+        if (statusPollTimer) {
+            window.clearInterval(statusPollTimer);
+        }
+        statusPollTimer = window.setInterval(bootstrapStatus, 5000);
+    }
+
     bootstrapStatus();
     connectStream();
+    startStatusPolling();
 })();
 </script>
 </body>

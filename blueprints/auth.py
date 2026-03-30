@@ -14,7 +14,7 @@ from flask import (
 )
 
 from services.db_service import get_or_create_user, get_user_by_id, update_username
-from services.realtime_service import publish_user_event, subscribe_user, unsubscribe_user
+from services.realtime_service import subscribe_user, unsubscribe_user
 from services.session_service import (
     build_baseline_status_payload,
     establish_existing_user_session,
@@ -169,18 +169,31 @@ def baseline_status_stream():
 
     sync_pending_baseline_session(user)
     initial_payload = build_baseline_status_payload(user)
-    publish_user_event(current_uid, initial_payload)
 
     def event_stream():
         q = subscribe_user(current_uid)
+        last_payload = initial_payload
         try:
             yield f"event: status\ndata: {json.dumps(initial_payload)}\n\n"
             while True:
                 try:
-                    data = q.get(timeout=25)
+                    data = q.get(timeout=3)
                 except queue.Empty:
+                    refreshed_user = get_user_by_id(current_uid)
+                    if not refreshed_user:
+                        yield "event: status\ndata: " + json.dumps({"reload": True}) + "\n\n"
+                        return
+
+                    sync_pending_baseline_session(refreshed_user)
+                    refreshed_payload = build_baseline_status_payload(refreshed_user)
+                    if refreshed_payload != last_payload:
+                        last_payload = refreshed_payload
+                        yield f"event: status\ndata: {json.dumps(refreshed_payload)}\n\n"
+                        continue
+
                     yield ": keep-alive\n\n"
                     continue
+                last_payload = json.loads(data)
                 yield f"event: status\ndata: {data}\n\n"
         finally:
             unsubscribe_user(current_uid, q)
