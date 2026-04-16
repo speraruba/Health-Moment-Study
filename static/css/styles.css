@@ -103,6 +103,7 @@ body.page-login .consent-panel h3 {
     margin: 0 0 10px 0;
     font-size: 22px;
     color: var(--text-dark);
+    text-align: center;
 }
 
 body.page-login .consent-panel p {
@@ -121,6 +122,17 @@ body.page-login .consent-panel .section-title {
 
 body.page-login .consent-panel .consent-text {
     margin-top: 18px;
+}
+
+body.page-login .consent-panel .full-consent-link {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-light);
+}
+
+body.page-login .consent-panel .full-consent-link a {
+    color: var(--primary-dark);
+    font-weight: 600;
 }
 
 body.page-login .form-container {
@@ -301,6 +313,13 @@ body.page-dashboard p {
 
 body.page-baseline p {
     margin: 6px 0 16px 0;
+}
+
+body.page-baseline .baseline-note {
+    margin: 6px 0 16px 0;
+    color: #3f4f4c;
+    font-size: 15px;
+    line-height: 1.6;
 }
 
 body.page-dashboard p {
@@ -579,6 +598,8 @@ body.page-dashboard .history-card-day {
     font-weight: 600;
     color: var(--text-dark);
     margin-bottom: 8px;
+    font-size: 15px;
+    letter-spacing: 0.01em;
 }
 
 body.page-dashboard .history-row {
@@ -656,6 +677,10 @@ body.page-dashboard .history-row:last-child {
 
     body.page-dashboard .mobile-history {
         display: block;
+    }
+
+    body.page-dashboard .history-card-day {
+        font-size: 14px;
     }
 }
 

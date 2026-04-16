@@ -11,8 +11,8 @@
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
       data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}">
 <div class="container">
-    <h2>Baseline Information Collection</h2>
-    <p>Please complete the baseline survey. Once completed, you can continue to the dashboard.</p>
+    <h2>Getting started</h2>
+    <p class="baseline-note">Please complete the background survey. Once completed, you can continue to the dashboard.</p>
 
     {% if error %}
         <div class="error-msg">{{ error }}</div>
@@ -20,7 +20,7 @@
 
     <div class="form-block">
         <div class="form-top">
-            <strong>Baseline Survey</strong>
+            <strong>Background Survey</strong>
             <span id="baseline-status" class="status-pill {% if baseline_done %}status-done{% else %}status-pending{% endif %}">
                 {% if baseline_done %}Completed{% else %}Pending{% endif %}
             </span>
@@ -37,7 +37,7 @@
     </div>
 
     <form method="POST" id="baseline-form">
-        <p class="hint">Survey status updates automatically. If it doesn't update, please refresh the page.</p>
+        <p class="baseline-note">Survey status updates automatically. If it doesn't update, please refresh the page.</p>
         <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
             Continue to Dashboard
         </button>

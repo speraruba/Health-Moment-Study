@@ -22,6 +22,7 @@ def build_dashboard_context(user, user_id):
     daily_stats = []
     event_stats = []
     day_labels = []
+    mobile_day_labels = []
 
     for i in range(7):
         current_day = start_of_week + timedelta(days=i)
@@ -32,6 +33,7 @@ def build_dashboard_context(user, user_id):
         daily_stats.append(daily_count > 0)
         event_stats.append(str(event_count) if event_count > 0 else '')
         day_labels.append(f"Day {i + 1} ({current_day.strftime('%A')})")
+        mobile_day_labels.append(f"Day {i + 1} ({current_day.strftime('%a')})")
 
     today_start_ts, tomorrow_start_ts = local_day_bounds_to_utc_timestamps(local_today, user_tz)
     daily_completed_today = count_completed_records(
@@ -44,4 +46,5 @@ def build_dashboard_context(user, user_id):
         "event_stats": event_stats,
         "daily_completed_today": daily_completed_today,
         "day_labels": day_labels,
+        "mobile_day_labels": mobile_day_labels,
     }

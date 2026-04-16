@@ -11,7 +11,7 @@
 
 <div class="container">
     <h3>Welcome to Week <span id="week-number">{{ weeks_participated }}</span>, <span style="text-transform: uppercase;">{{ username }}!</span></h3>
-    <p>Here you can access your daily and event surveys on this page.</p>
+    <p>You can access your daily and event surveys on this page.</p>
     <div>
         <a id="daily-survey-link"
            class="survey-link {% if daily_completed_today %}disabled-link{% endif %}"
@@ -23,9 +23,9 @@
         <p>Complete this survey every morning.</p>
 
         <div class="note-section">
-            <p><strong>Note:</strong></p>
-            <p>- Please complete within an hour of waking up.</p>
-            <p>- If you miss the morning window, complete it before noon using your best memory.</p>
+            <p><strong>Notes:</strong></p>
+            <p>- Please complete this survey within an hour of waking up.</p>
+            <p>- If you miss the first hour of the day window, complete it before noon using your best memory.</p>
         </div>
     </div>
 
@@ -37,12 +37,12 @@
            Start Event Survey
         </a>
 
-        <p>Complete this survey each time you interact with alcohol-related information.</p>
+        <p>Complete this survey each time you interact with information relevant to your goal of changing your alcohol use.</p>
 
         <div class="note-section">
-            <p><strong>Note:</strong></p>
-            <p>- Submit whenever relevant to your goal of changing alcohol use.</p>
-            <p>- A reminder will be sent if no submission occurs for 48 hours.</p>
+            <p><strong>Notes:</strong></p>
+            <p>- Please complete this survey whenever you come across or seek information you deem relevant to your goal of changing your alcohol use.</p>
+            <p>- A reminder will be sent if no submission is received for 48 hours.</p>
         </div>
     </div>
 
@@ -99,7 +99,7 @@
         {% for i in range(7) %}
             {% set event_count = event_stats[i] if event_stats[i] else 0 %}
             <div class="history-card">
-                <div class="history-card-day">{{ day_labels[i] }}</div>
+                <div class="history-card-day" data-mobile-day-label-index="{{ i }}">{{ mobile_day_labels[i] }}</div>
                 <div class="history-row" data-mobile-daily-index="{{ i }}">
                     <span>Daily</span>
                     <span data-daily-value>
@@ -127,6 +127,7 @@
     'weeks_participated': weeks_participated,
     'daily_stats': daily_stats,
     'event_stats': event_stats,
+    'mobile_day_labels': mobile_day_labels,
     'daily_completed_today': daily_completed_today,
     'dailySurveyUrl': "https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid=" ~ user_id
 } | tojson }}
@@ -151,6 +152,7 @@
         weeks_participated: bootstrap.weeks_participated,
         daily_stats: bootstrap.daily_stats,
         event_stats: bootstrap.event_stats,
+        mobile_day_labels: bootstrap.mobile_day_labels || [],
         daily_completed_today: bootstrap.daily_completed_today
     };
     const currentState = { ...initialState };
@@ -191,6 +193,16 @@
     }
 
     function setHistoryState(nextState) {
+        if (Array.isArray(nextState.mobile_day_labels)) {
+            nextState.mobile_day_labels.forEach(function (label, index) {
+                document
+                    .querySelectorAll('[data-mobile-day-label-index="' + index + '"]')
+                    .forEach(function (node) {
+                        node.textContent = label;
+                    });
+            });
+        }
+
         nextState.daily_stats.forEach(function (done, index) {
             document
                 .querySelectorAll('[data-daily-index="' + index + '"] [data-daily-value], [data-mobile-daily-index="' + index + '"] [data-daily-value]')
@@ -214,6 +226,7 @@
         currentState.weeks_participated = nextState.weeks_participated;
         currentState.daily_stats = nextState.daily_stats;
         currentState.event_stats = nextState.event_stats;
+        currentState.mobile_day_labels = nextState.mobile_day_labels || [];
         currentState.daily_completed_today = nextState.daily_completed_today;
         if (weekNumber) {
             weekNumber.textContent = String(nextState.weeks_participated);
