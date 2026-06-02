@@ -66,7 +66,8 @@ def initialize_database():
             screening_completed BOOLEAN NOT NULL DEFAULT 0,
             baseline_completed BOOLEAN NOT NULL DEFAULT 0,
             screening_id VARCHAR(100) DEFAULT NULL,
-            baseline_id VARCHAR(100) DEFAULT NULL
+            baseline_id VARCHAR(100) DEFAULT NULL,
+            calendar_start_date BIGINT DEFAULT NULL
         ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
         """
     )
@@ -135,6 +136,10 @@ def ensure_users_completion_columns():
             execute(
                 "ALTER TABLE users MODIFY COLUMN start_date_central_time VARCHAR(19) DEFAULT NULL"
             )
+    if 'calendar_start_date' not in existing_columns:
+        execute(
+            "ALTER TABLE users ADD COLUMN calendar_start_date BIGINT DEFAULT NULL"
+        )
 
     rows = fetch_all("SELECT user_id, start_date FROM users")
     for row in rows:
@@ -228,6 +233,14 @@ def update_user_survey_status(user_id, survey_type, status, response_id):
     execute(
         f"UPDATE users SET {completed_field} = %s, {id_field} = %s WHERE user_id = %s",
         (True, response_id, user_id),
+    )
+    return get_user_by_id(user_id)
+
+
+def update_calendar_start_date(user_id, calendar_start_date):
+    execute(
+        "UPDATE users SET calendar_start_date = %s WHERE user_id = %s",
+        (calendar_start_date, user_id),
     )
     return get_user_by_id(user_id)
 

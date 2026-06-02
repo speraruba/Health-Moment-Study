@@ -11,20 +11,20 @@
 
 <div class="container">
     <h3>Welcome to Week <span id="week-number">{{ weeks_participated }}</span>, <span style="text-transform: uppercase;">{{ username }}!</span></h3>
-    <p>You can access your daily and event surveys on this page.</p>
+    <p>You can access your morning and moment surveys on this page.</p>
     <div>
         <a id="daily-survey-link"
            class="survey-link {% if daily_completed_today %}disabled-link{% endif %}"
            href="{% if daily_completed_today %}javascript:void(0);{% else %}https://illinois.qualtrics.com/jfe/form/SV_aXjDswITpk35pVs?uid={{ user_id }}{% endif %}"
            {% if not daily_completed_today %}target="_blank"{% else %}aria-disabled="true" tabindex="-1"{% endif %}>
-           {% if daily_completed_today %}Daily survey (Completed for today){% else %}Start Daily Survey{% endif %}
+           {% if daily_completed_today %}Morning survey (Completed for today){% else %}Start Morning Survey{% endif %}
         </a>
 
         <p>Complete this survey every morning.</p>
 
         <div class="note-section">
             <p><strong>Notes:</strong></p>
-            <p>- Please complete this survey within an hour of waking up.</p>
+            <p>- Please complete the morning survey within one hour of waking up.</p>
             <p>- If you miss the first hour of the day window, complete it before noon using your best memory.</p>
         </div>
     </div>
@@ -34,7 +34,7 @@
            class="survey-link"
            href="https://illinois.qualtrics.com/jfe/form/SV_e3W7QPl58GwWKXA?uid={{ user_id }}"
            target="_blank">
-           Start Event Survey
+           Start Moment Survey
         </a>
 
         <p>Complete this survey each time you interact with information relevant to your goal of changing your alcohol use.</p>
@@ -65,7 +65,7 @@
                         {% for is_completed in daily_stats %}
                         <td>
                             <div class="cell-content" data-daily-index="{{ loop.index0 }}">
-                                <span>Daily</span>
+                                <span>Morning</span>
                                 <span class="val" data-daily-value>
                                     {% if is_completed %}
                                         <span class="status-badge">✓</span>
@@ -81,7 +81,7 @@
                         {% for stat in event_stats %}
                         <td>
                             <div class="cell-content" data-event-index="{{ loop.index0 }}">
-                                <span>Event</span>
+                                <span>Moment</span>
                                 {% set count = stat if stat else 0 %}
                                 <span class="event-badge {% if count == 0 %}zero{% endif %}" data-event-value>
                                     {{ count }}
@@ -101,7 +101,7 @@
             <div class="history-card">
                 <div class="history-card-day" data-mobile-day-label-index="{{ i }}">{{ mobile_day_labels[i] }}</div>
                 <div class="history-row" data-mobile-daily-index="{{ i }}">
-                    <span>Daily</span>
+                    <span>Morning</span>
                     <span data-daily-value>
                         {% if daily_stats[i] %}
                             <span class="status-badge">✓</span>
@@ -111,7 +111,7 @@
                     </span>
                 </div>
                 <div class="history-row" data-mobile-event-index="{{ i }}">
-                    <span>Event</span>
+                    <span>Moment</span>
                     <span class="event-badge {% if event_count == 0 %}zero{% endif %}" data-event-value>
                         {{ event_count }}
                     </span>
@@ -139,14 +139,7 @@
         ? JSON.parse(bootstrapEl.textContent)
         : {};
 
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const url = new URL(window.location.href);
     const dashboardStatusUrl = bootstrap.dashboardStatusUrl;
-    if (browserTz && url.searchParams.get('tz') !== browserTz) {
-        url.searchParams.set('tz', browserTz);
-        window.location.replace(url.toString());
-        return;
-    }
 
     const initialState = {
         weeks_participated: bootstrap.weeks_participated,
@@ -175,8 +168,8 @@
         }
 
         dailySurveyLink.textContent = done
-            ? 'Daily survey (Completed for today)'
-            : 'Start Daily Survey';
+            ? 'Morning survey (Completed for today)'
+            : 'Start Morning Survey';
         dailySurveyLink.classList.toggle('disabled-link', done);
 
         if (done) {

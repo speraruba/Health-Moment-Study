@@ -1,5 +1,6 @@
 import json
 import queue
+from datetime import datetime
 
 from flask import (
     Blueprint,
@@ -13,13 +14,14 @@ from flask import (
     url_for,
 )
 
-from services.db_service import get_or_create_user, get_user_by_id, update_username
+from services.db_service import get_or_create_user, get_user_by_id, update_username, update_calendar_start_date
 from services.realtime_service import subscribe_user, unsubscribe_user
 from services.session_service import (
     build_baseline_status_payload,
     establish_existing_user_session,
     sync_pending_baseline_session,
 )
+from services.time_service import central_date_string, central_date_to_utc_timestamp, central_today
 
 
 bp = Blueprint('auth', __name__)
@@ -71,6 +73,41 @@ def user_exists():
     return jsonify({"exists": exists}), 200
 
 
+@bp.route('/api/set-calendar-start-date', methods=['POST'])
+def set_calendar_start_date():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    current_uid = session['user_id']
+    user = get_user_by_id(current_uid)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json()
+    if not data or 'calendar_start_date' not in data:
+        return jsonify({"error": "calendar_start_date is required"}), 400
+
+    calendar_start_date_str = data.get('calendar_start_date', '').strip()
+
+    try:
+        date_obj = datetime.strptime(calendar_start_date_str, '%Y-%m-%d')
+        calendar_start_date = central_date_to_utc_timestamp(date_obj.date())
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    today_ts = central_date_to_utc_timestamp(central_today())
+
+    if calendar_start_date < today_ts:
+        return jsonify({"error": "Calendar start date must not be in the past"}), 400
+
+    updated_user = update_calendar_start_date(current_uid, calendar_start_date)
+    return jsonify({
+        "success": True,
+        "message": "Calendar start date updated successfully",
+        "calendar_start_date": updated_user.calendar_start_date
+    }), 200
+
+
 @bp.route('/baseline-info', methods=['GET', 'POST'])
 def baseline_info():
     if 'user_id' not in session:
@@ -88,22 +125,28 @@ def baseline_info():
         return redirect(url_for('dashboard.dashboard'))
 
     baseline_done = bool(user.baseline_completed)
-    all_done = baseline_done
+    date_selected = bool(user.calendar_start_date)
+    all_done = baseline_done and date_selected
 
     error = None
     if request.method == 'POST':
         user = get_user_by_id(current_uid)
-        if user.baseline_completed:
+        if user.baseline_completed and user.calendar_start_date:
             session.pop('pending_baseline_user_id', None)
             return redirect(url_for('dashboard.dashboard'))
-        error = "The baseline survey must be completed before continuing."
+        if not user.baseline_completed:
+            error = "The baseline survey must be completed before continuing."
+        elif not user.calendar_start_date:
+            error = "Please select a calendar start date before continuing."
         baseline_done = bool(user.baseline_completed)
-        all_done = baseline_done
+        date_selected = bool(user.calendar_start_date)
+        all_done = baseline_done and date_selected
 
     return render_template(
         'baseline_info.html',
         user_id=current_uid,
         baseline_done=baseline_done,
+        selected_calendar_date=central_date_string(user.calendar_start_date) if user.calendar_start_date else '',
         all_done=all_done,
         error=error
     )

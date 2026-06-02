@@ -14,6 +14,7 @@ class User:
     baseline_completed: bool = False
     screening_id: str | None = None
     baseline_id: str | None = None
+    calendar_start_date: int | None = None
 
     @classmethod
     def from_row(cls, row):
@@ -29,6 +30,7 @@ class User:
             baseline_completed=bool(row.get('baseline_completed')),
             screening_id=row.get('screening_id'),
             baseline_id=row.get('baseline_id'),
+            calendar_start_date=row.get('calendar_start_date'),
         )
 
 

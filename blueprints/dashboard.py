@@ -34,6 +34,10 @@ def dashboard():
         session.clear()
         return redirect(url_for('auth.login'))
 
+    if not user.calendar_start_date:
+        session['pending_baseline_user_id'] = current_uid
+        return redirect(url_for('auth.baseline_info'))
+
     dashboard_context = build_dashboard_context(user, current_uid)
     return render_template(
         'dashboard.html',

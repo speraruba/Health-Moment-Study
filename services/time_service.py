@@ -1,7 +1,16 @@
 from datetime import datetime, timedelta, timezone, time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import request, session
+from flask import session
+
+CENTRAL_TIMEZONE_NAME = "America/Chicago"
+
+
+def central_timezone():
+    try:
+        return ZoneInfo(CENTRAL_TIMEZONE_NAME)
+    except ZoneInfoNotFoundError:
+        return timezone.utc
 
 
 def current_utc_timestamp():
@@ -40,23 +49,8 @@ def normalize_unix_timestamp(value):
 
 
 def resolve_dashboard_timezone():
-    tz_name = request.args.get('tz', '').strip()
-    if tz_name:
-        try:
-            tz = ZoneInfo(tz_name)
-            session['dashboard_timezone'] = tz_name
-            return tz
-        except ZoneInfoNotFoundError:
-            pass
-
-    saved_tz_name = session.get('dashboard_timezone', '')
-    if saved_tz_name:
-        try:
-            return ZoneInfo(saved_tz_name)
-        except ZoneInfoNotFoundError:
-            session.pop('dashboard_timezone', None)
-
-    return timezone.utc
+    session['dashboard_timezone'] = CENTRAL_TIMEZONE_NAME
+    return central_timezone()
 
 
 def local_day_bounds_to_utc_timestamps(local_date, user_tz):
@@ -68,11 +62,21 @@ def local_day_bounds_to_utc_timestamps(local_date, user_tz):
 
 
 def central_datetime_string(utc_timestamp):
-    try:
-        central_tz = ZoneInfo("America/Chicago")
-    except ZoneInfoNotFoundError:
-        central_tz = timezone.utc
-
     utc_dt = datetime.fromtimestamp(utc_timestamp, timezone.utc)
-    central_dt = utc_dt.astimezone(central_tz)
+    central_dt = utc_dt.astimezone(central_timezone())
     return central_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def central_date_string(utc_timestamp):
+    utc_dt = datetime.fromtimestamp(utc_timestamp, timezone.utc)
+    central_dt = utc_dt.astimezone(central_timezone())
+    return central_dt.strftime("%Y-%m-%d")
+
+
+def central_date_to_utc_timestamp(date_value):
+    central_start = datetime.combine(date_value, time.min, tzinfo=central_timezone())
+    return int(central_start.astimezone(timezone.utc).timestamp())
+
+
+def central_today():
+    return datetime.now(timezone.utc).astimezone(central_timezone()).date()

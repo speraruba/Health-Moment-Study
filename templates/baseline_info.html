@@ -11,33 +11,69 @@
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
       data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}">
 <div class="container">
-    <h2>Getting started</h2>
-    <p class="baseline-note">Please complete the background survey. Once completed, you can continue to the dashboard.</p>
+    <header class="baseline-header">
+        <div>
+            <p class="eyebrow">Participant setup</p>
+            <h2>Getting started</h2>
+            <p class="baseline-note">Complete these two items before opening your study dashboard.</p>
+        </div>
+        <span class="timezone-pill">Chicago time</span>
+    </header>
 
     {% if error %}
         <div class="error-msg">{{ error }}</div>
     {% endif %}
 
-    <div class="form-block">
-        <div class="form-top">
-            <strong>Background Survey</strong>
-            <span id="baseline-status" class="status-pill {% if baseline_done %}status-done{% else %}status-pending{% endif %}">
-                {% if baseline_done %}Completed{% else %}Pending{% endif %}
-            </span>
-        </div>
-        <a id="baseline-link"
-           class="form-link {% if baseline_done %}disabled-link{% endif %}"
-           href="{% if baseline_done %}#{% else %}https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}{% endif %}"
-           data-url="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
-           {% if not baseline_done %}target="_blank"{% endif %}
-           rel="noopener noreferrer"
-           {% if baseline_done %}aria-disabled="true" tabindex="-1"{% endif %}>
-           Start Baseline Survey
-        </a>
+    <div class="baseline-steps" aria-label="Setup steps">
+        <section class="form-block">
+            <div class="step-marker" aria-hidden="true">1</div>
+            <div class="form-content">
+                <div class="form-top">
+                    <div>
+                        <strong>Background Survey</strong>
+                        <p>Open the baseline survey and submit it in Qualtrics.</p>
+                    </div>
+                    <span id="baseline-status" class="status-pill {% if baseline_done %}status-done{% else %}status-pending{% endif %}">
+                        {% if baseline_done %}Completed{% else %}Pending{% endif %}
+                    </span>
+                </div>
+                <a id="baseline-link"
+                   class="form-link {% if baseline_done %}disabled-link{% endif %}"
+                   href="{% if baseline_done %}#{% else %}https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}{% endif %}"
+                   data-url="https://illinois.qualtrics.com/jfe/form/SV_1RZhpJChpS69a1o?uid={{ user_id }}"
+                   {% if not baseline_done %}target="_blank"{% endif %}
+                   rel="noopener noreferrer"
+                   {% if baseline_done %}aria-disabled="true" tabindex="-1"{% endif %}>
+                   Start Baseline Survey
+                </a>
+            </div>
+        </section>
+
+        <section class="form-block">
+            <div class="step-marker" aria-hidden="true">2</div>
+            <div class="form-content">
+                <div class="form-top">
+                    <div>
+                        <strong>Select your Start Date</strong>
+                        <p>Your dashboard weeks will begin on this date.</p>
+                    </div>
+                    <span id="date-status-pill" class="status-pill {% if selected_calendar_date %}status-done{% else %}status-pending{% endif %}">
+                        {% if selected_calendar_date %}Saved{% else %}Pending{% endif %}
+                    </span>
+                </div>
+                <label class="select-label" for="calendar-start-date">Start date</label>
+                <select id="calendar-start-date" class="form-control" data-selected-date="{{ selected_calendar_date }}">
+                    <option value="">Select a date</option>
+                </select>
+                <div id="date-selection-status" class="date-status" aria-live="polite">
+                    {% if selected_calendar_date %}Date saved successfully.{% endif %}
+                </div>
+            </div>
+        </section>
     </div>
 
-    <form method="POST" id="baseline-form">
-        <p class="baseline-note">Survey status updates automatically. If it doesn't update, please refresh the page.</p>
+    <form method="POST" id="baseline-form" class="baseline-actions">
+        <p class="baseline-note">Survey status updates automatically.</p>
         <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
             Continue to Dashboard
         </button>
@@ -50,10 +86,14 @@
     const continueBtn = document.getElementById('continue-btn');
     const baselineStatus = document.getElementById('baseline-status');
     const baselineLink = document.getElementById('baseline-link');
+    const calendarStartDateSelect = document.getElementById('calendar-start-date');
+    const dateSelectionStatus = document.getElementById('date-selection-status');
+    const dateStatusPill = document.getElementById('date-status-pill');
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
     let stream = null;
     let statusPollTimer = null;
+    let selectedCalendarDate = calendarStartDateSelect.dataset.selectedDate || null;
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -64,6 +104,12 @@
     function setContinueEnabled(enabled) {
         continueBtn.disabled = !enabled;
         continueBtn.classList.toggle('enabled', enabled);
+    }
+
+    function setDateStatus(saved) {
+        dateStatusPill.textContent = saved ? 'Saved' : 'Pending';
+        dateStatusPill.classList.toggle('status-done', saved);
+        dateStatusPill.classList.toggle('status-pending', !saved);
     }
 
     function setSurveyLinkState(linkEl, done) {
@@ -83,6 +129,108 @@
         linkEl.removeAttribute('tabindex');
     }
 
+    function generateDateOptions() {
+        const options = [];
+        const chicagoDateParts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Chicago',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).formatToParts(new Date());
+        const datePartMap = Object.fromEntries(
+            chicagoDateParts
+                .filter(part => part.type !== 'literal')
+                .map(part => [part.type, part.value])
+        );
+        const today = new Date(
+            Number(datePartMap.year),
+            Number(datePartMap.month) - 1,
+            Number(datePartMap.day),
+            0,
+            0,
+            0,
+            0
+        );
+
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() + i);
+
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            const chicagoDisplayDate = new Date(Date.UTC(year, Number(month) - 1, Number(day), 18, 0, 0));
+
+            const displayStr = chicagoDisplayDate.toLocaleDateString('en-US', {
+                timeZone: 'America/Chicago',
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            options.push({ displayStr, dateStr });
+        }
+        return options;
+    }
+
+    function populateDateSelect() {
+        const dateOptions = generateDateOptions();
+        dateOptions.forEach(option => {
+            const optionEl = document.createElement('option');
+            optionEl.value = option.dateStr;
+            optionEl.textContent = option.displayStr;
+            calendarStartDateSelect.appendChild(optionEl);
+        });
+        if (selectedCalendarDate) {
+            calendarStartDateSelect.value = selectedCalendarDate;
+            dateSelectionStatus.classList.add('date-success');
+            setDateStatus(true);
+        }
+    }
+
+    async function saveCalendarStartDate(dateStr) {
+        try {
+            dateSelectionStatus.textContent = '';
+            dateSelectionStatus.className = 'date-status';
+            const response = await fetch('/api/set-calendar-start-date', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ calendar_start_date: dateStr })
+            });
+
+            if (response.status === 401 || response.status === 404) {
+                window.location.reload();
+                return;
+            }
+
+            const data = await response.json();
+            if (response.ok) {
+                selectedCalendarDate = dateStr;
+                dateSelectionStatus.textContent = 'Date saved successfully.';
+                dateSelectionStatus.classList.add('date-success');
+                setDateStatus(true);
+                updateContinueButtonState();
+            } else {
+                dateSelectionStatus.textContent = 'Error: ' + (data.error || 'Failed to save date');
+                dateSelectionStatus.classList.add('date-error');
+            }
+        } catch (e) {
+            dateSelectionStatus.textContent = 'Error saving date';
+            dateSelectionStatus.classList.add('date-error');
+        }
+    }
+
+    function updateContinueButtonState() {
+        const isBaselineCompleted = baselineStatus.classList.contains('status-done');
+        const isDateSelected = selectedCalendarDate !== null;
+        setContinueEnabled(isBaselineCompleted && isDateSelected);
+    }
+
     function applyStatusUpdate(data) {
         if (!data) {
             return;
@@ -93,7 +241,7 @@
         }
         setStatus(baselineStatus, !!data.baseline_completed);
         setSurveyLinkState(baselineLink, !!data.baseline_completed);
-        setContinueEnabled(!!data.all_completed);
+        updateContinueButtonState();
     }
 
     async function bootstrapStatus() {
@@ -144,6 +292,20 @@
         }
         statusPollTimer = window.setInterval(bootstrapStatus, 5000);
     }
+
+    populateDateSelect();
+    calendarStartDateSelect.addEventListener('change', (e) => {
+        const selectedValue = e.target.value;
+        if (selectedValue) {
+            saveCalendarStartDate(selectedValue);
+        } else {
+            selectedCalendarDate = null;
+            dateSelectionStatus.textContent = '';
+            dateSelectionStatus.className = 'date-status';
+            setDateStatus(false);
+            updateContinueButtonState();
+        }
+    });
 
     bootstrapStatus();
     connectStream();

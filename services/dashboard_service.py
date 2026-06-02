@@ -12,7 +12,11 @@ def count_completed_records(model, user_id, start_ts, end_ts):
 def build_dashboard_context(user, user_id):
     user_tz = resolve_dashboard_timezone()
     local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
-    start_local_date = datetime.fromtimestamp(user.start_date, timezone.utc).astimezone(user_tz).date()
+
+    # Use calendar_start_date if available, otherwise fall back to start_date
+    effective_start_ts = user.calendar_start_date if user.calendar_start_date else user.start_date
+    start_local_date = datetime.fromtimestamp(effective_start_ts, timezone.utc).astimezone(user_tz).date()
+
     # Count weeks as 7-day blocks starting from the user's start date.
     days_since_start = (local_today - start_local_date).days
     days_since_start = max(0, days_since_start)
