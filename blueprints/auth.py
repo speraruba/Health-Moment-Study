@@ -137,6 +137,10 @@ def baseline_info():
     if pending_uid != current_uid:
         return redirect(url_for('dashboard.dashboard'))
 
+    if user.baseline_completed and user.calendar_start_date:
+        session.pop('pending_baseline_user_id', None)
+        return redirect(url_for('dashboard.dashboard'))
+
     baseline_done = bool(user.baseline_completed)
     date_selected = bool(user.calendar_start_date)
     all_done = baseline_done and date_selected

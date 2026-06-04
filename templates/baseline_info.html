@@ -9,7 +9,8 @@
 
 <body class="page-baseline"
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
-      data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}">
+      data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}"
+      data-dashboard-url="{{ url_for('dashboard.dashboard') }}">
 <div class="container">
     <header class="baseline-header">
         <div>
@@ -94,6 +95,7 @@
     const dateStatusPill = document.getElementById('date-status-pill');
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
+    const dashboardUrl = pageBody.dataset.dashboardUrl;
     let stream = null;
     let statusPollTimer = null;
     let selectedCalendarDate = calendarStartDateSelect.dataset.selectedDate || null;
@@ -224,6 +226,9 @@
             setDateStatus(false);
         }
         updateContinueButtonState();
+        if (data.all_completed) {
+            window.location.href = dashboardUrl;
+        }
     }
 
     async function bootstrapStatus() {
