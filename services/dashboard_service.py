@@ -9,20 +9,24 @@ def count_completed_records(model, user_id, start_ts, end_ts):
     return count_completed_rows(model.table_name, user_id, start_ts, end_ts)
 
 
+def calculate_current_week(start_local_date, local_today):
+    days_since_start = (local_today - start_local_date).days
+    full_weeks_elapsed = max(0, days_since_start) // 7
+    current_week = full_weeks_elapsed + 1
+    current_week_start = start_local_date + timedelta(days=full_weeks_elapsed * 7)
+    return current_week, current_week_start
+
+
 def build_dashboard_context(user, user_id):
     user_tz = resolve_dashboard_timezone()
     local_today = datetime.now(timezone.utc).astimezone(user_tz).date()
 
-    # Use calendar_start_date if available, otherwise fall back to start_date
+    # Use the participant-selected date as the dashboard anchor.
     effective_start_ts = user.calendar_start_date if user.calendar_start_date else user.start_date
     start_local_date = datetime.fromtimestamp(effective_start_ts, timezone.utc).astimezone(user_tz).date()
 
-    # Count weeks as 7-day blocks starting from the user's start date.
-    days_since_start = (local_today - start_local_date).days
-    days_since_start = max(0, days_since_start)
-    weeks_participated = (days_since_start // 7) + 1
+    weeks_participated, start_of_week = calculate_current_week(start_local_date, local_today)
 
-    start_of_week = start_local_date + timedelta(days=(weeks_participated - 1) * 7)
     daily_stats = []
     event_stats = []
     day_labels = []
