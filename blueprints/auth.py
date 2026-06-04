@@ -1,4 +1,5 @@
 import json
+import logging
 import queue
 from datetime import datetime
 
@@ -25,6 +26,7 @@ from services.time_service import central_date_string, central_date_to_utc_times
 
 
 bp = Blueprint('auth', __name__)
+logger = logging.getLogger(__name__)
 
 
 @bp.route('/', methods=['GET', 'POST'])
@@ -103,7 +105,10 @@ def set_calendar_start_date():
     try:
         updated_user = update_calendar_start_date(current_uid, calendar_start_date)
     except Exception:
-        return jsonify({"error": "Failed to save calendar start date"}), 500
+        logger.exception("Failed to save calendar start date for user_id=%s", current_uid)
+        return jsonify({
+            "error": "Failed to save calendar start date. Check server logs and database schema."
+        }), 500
 
     if not updated_user or not updated_user.calendar_start_date:
         return jsonify({"error": "Calendar start date was not saved"}), 500
@@ -135,26 +140,59 @@ def baseline_info():
     baseline_done = bool(user.baseline_completed)
     date_selected = bool(user.calendar_start_date)
     all_done = baseline_done and date_selected
+    selected_calendar_date = central_date_string(user.calendar_start_date) if user.calendar_start_date else ''
 
     error = None
     if request.method == 'POST':
         user = get_user_by_id(current_uid)
+        submitted_calendar_date = request.form.get('calendar_start_date', '').strip()
+        selected_calendar_date = (
+            central_date_string(user.calendar_start_date)
+            if user.calendar_start_date
+            else submitted_calendar_date
+        )
+
         if user.baseline_completed and user.calendar_start_date:
             session.pop('pending_baseline_user_id', None)
             return redirect(url_for('dashboard.dashboard'))
         if not user.baseline_completed:
             error = "The baseline survey must be completed before continuing."
-        elif not user.calendar_start_date:
+        elif not submitted_calendar_date:
             error = "Please select a calendar start date before continuing."
+        else:
+            try:
+                date_obj = datetime.strptime(submitted_calendar_date, '%Y-%m-%d')
+                calendar_start_date = central_date_to_utc_timestamp(date_obj.date())
+            except ValueError:
+                error = "Invalid date format. Use YYYY-MM-DD."
+            else:
+                today_ts = central_date_to_utc_timestamp(central_today())
+                if calendar_start_date < today_ts:
+                    error = "Calendar start date must not be in the past."
+                else:
+                    try:
+                        user = update_calendar_start_date(current_uid, calendar_start_date)
+                    except Exception:
+                        logger.exception("Failed to save calendar start date for user_id=%s", current_uid)
+                        error = "Failed to save calendar start date. Please try again."
+                    else:
+                        if user and user.calendar_start_date:
+                            sync_pending_baseline_session(user)
+                            return redirect(url_for('dashboard.dashboard'))
+                        error = "Calendar start date was not saved. Please try again."
+
         baseline_done = bool(user.baseline_completed)
         date_selected = bool(user.calendar_start_date)
         all_done = baseline_done and date_selected
+        if user.calendar_start_date:
+            selected_calendar_date = central_date_string(user.calendar_start_date)
 
     return render_template(
         'baseline_info.html',
         user_id=current_uid,
         baseline_done=baseline_done,
-        selected_calendar_date=central_date_string(user.calendar_start_date) if user.calendar_start_date else '',
+        selected_calendar_date=selected_calendar_date,
+        date_saved=bool(user.calendar_start_date),
         all_done=all_done,
         error=error
     )

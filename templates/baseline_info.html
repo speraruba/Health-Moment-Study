@@ -8,7 +8,6 @@
 </head>
 
 <body class="page-baseline"
-      data-calendar-start-date-url="{{ url_for('auth.set_calendar_start_date') }}"
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
       data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}">
 <div class="container">
@@ -59,23 +58,25 @@
                         <p>Your dashboard weeks will begin on this date.</p>
                     </div>
                     <span id="date-status-pill" class="status-pill {% if selected_calendar_date %}status-done{% else %}status-pending{% endif %}">
-                        {% if selected_calendar_date %}Saved{% else %}Pending{% endif %}
+                        {% if selected_calendar_date %}Selected{% else %}Pending{% endif %}
                     </span>
                 </div>
                 <label class="select-label" for="calendar-start-date">Start date</label>
-                <select id="calendar-start-date" class="form-control" data-selected-date="{{ selected_calendar_date }}">
+                <select id="calendar-start-date"
+                        class="form-control"
+                        data-selected-date="{{ selected_calendar_date }}"
+                        data-date-saved="{{ 'true' if date_saved else 'false' }}">
                     <option value="">Select a date</option>
                 </select>
-                <div id="date-selection-status" class="date-status" aria-live="polite">
-                    {% if selected_calendar_date %}Date saved successfully.{% endif %}
-                </div>
+                <div id="date-selection-status" class="date-status" aria-live="polite"></div>
             </div>
         </section>
     </div>
 
     <form method="POST" id="baseline-form" class="baseline-actions">
+        <input type="hidden" name="calendar_start_date" id="calendar-start-date-value" value="{{ selected_calendar_date }}">
         <p class="baseline-note">Survey status updates automatically.</p>
-        <button type="submit" class="submit-btn {% if all_done %}enabled{% endif %}" id="continue-btn" {% if not all_done %}disabled{% endif %}>
+        <button type="submit" class="submit-btn {% if baseline_done and selected_calendar_date %}enabled{% endif %}" id="continue-btn" {% if not (baseline_done and selected_calendar_date) %}disabled{% endif %}>
             Continue to Dashboard
         </button>
     </form>
@@ -88,14 +89,16 @@
     const baselineStatus = document.getElementById('baseline-status');
     const baselineLink = document.getElementById('baseline-link');
     const calendarStartDateSelect = document.getElementById('calendar-start-date');
+    const calendarStartDateValue = document.getElementById('calendar-start-date-value');
     const dateSelectionStatus = document.getElementById('date-selection-status');
     const dateStatusPill = document.getElementById('date-status-pill');
-    const calendarStartDateUrl = pageBody.dataset.calendarStartDateUrl;
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
     let stream = null;
     let statusPollTimer = null;
     let selectedCalendarDate = calendarStartDateSelect.dataset.selectedDate || null;
+    let dateSaved = calendarStartDateSelect.dataset.dateSaved === 'true';
+    let hasUnsavedDateSelection = !!selectedCalendarDate && !dateSaved;
 
     function setStatus(el, done) {
         el.textContent = done ? 'Completed' : 'Pending';
@@ -108,10 +111,10 @@
         continueBtn.classList.toggle('enabled', enabled);
     }
 
-    function setDateStatus(saved) {
-        dateStatusPill.textContent = saved ? 'Saved' : 'Pending';
-        dateStatusPill.classList.toggle('status-done', saved);
-        dateStatusPill.classList.toggle('status-pending', !saved);
+    function setDateStatus(selected) {
+        dateStatusPill.textContent = selected ? 'Selected' : 'Pending';
+        dateStatusPill.classList.toggle('status-done', selected);
+        dateStatusPill.classList.toggle('status-pending', !selected);
     }
 
     function setSurveyLinkState(linkEl, done) {
@@ -187,52 +190,14 @@
         });
         if (selectedCalendarDate) {
             calendarStartDateSelect.value = selectedCalendarDate;
-            dateSelectionStatus.classList.add('date-success');
+            calendarStartDateValue.value = selectedCalendarDate;
             setDateStatus(true);
-        }
-    }
-
-    async function saveCalendarStartDate(dateStr) {
-        try {
-            dateSelectionStatus.textContent = '';
-            dateSelectionStatus.className = 'date-status';
-            const response = await fetch(calendarStartDateUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ calendar_start_date: dateStr })
-            });
-
-            if (response.status === 401) {
-                window.location.reload();
-                return;
-            }
-
-            let data = {};
-            try {
-                data = await response.json();
-            } catch (e) {
-                data = {};
-            }
-            if (response.ok) {
-                dateSelectionStatus.textContent = 'Date saved successfully.';
-                dateSelectionStatus.classList.add('date-success');
-                applyStatusUpdate(data);
-            } else {
-                dateSelectionStatus.textContent = 'Error: ' + (data.error || 'Failed to save date');
-                dateSelectionStatus.classList.add('date-error');
-            }
-        } catch (e) {
-            dateSelectionStatus.textContent = 'Error saving date';
-            dateSelectionStatus.classList.add('date-error');
         }
     }
 
     function updateContinueButtonState() {
         const isBaselineCompleted = baselineStatus.classList.contains('status-done');
-        const isDateSelected = selectedCalendarDate !== null;
+        const isDateSelected = !!selectedCalendarDate;
         setContinueEnabled(isBaselineCompleted && isDateSelected);
     }
 
@@ -248,10 +213,14 @@
         setSurveyLinkState(baselineLink, !!data.baseline_completed);
         if (data.calendar_start_date) {
             selectedCalendarDate = data.calendar_start_date;
+            calendarStartDateValue.value = data.calendar_start_date;
             calendarStartDateSelect.value = data.calendar_start_date;
+            dateSaved = true;
+            hasUnsavedDateSelection = false;
             setDateStatus(true);
-        } else if (data.date_selected === false) {
+        } else if (data.date_selected === false && !hasUnsavedDateSelection) {
             selectedCalendarDate = null;
+            calendarStartDateValue.value = '';
             setDateStatus(false);
         }
         updateContinueButtonState();
@@ -310,9 +279,18 @@
     calendarStartDateSelect.addEventListener('change', (e) => {
         const selectedValue = e.target.value;
         if (selectedValue) {
-            saveCalendarStartDate(selectedValue);
+            selectedCalendarDate = selectedValue;
+            calendarStartDateValue.value = selectedValue;
+            dateSaved = false;
+            hasUnsavedDateSelection = true;
+            dateSelectionStatus.textContent = '';
+            dateSelectionStatus.className = 'date-status';
+            setDateStatus(true);
+            updateContinueButtonState();
         } else {
             selectedCalendarDate = null;
+            calendarStartDateValue.value = '';
+            hasUnsavedDateSelection = false;
             dateSelectionStatus.textContent = '';
             dateSelectionStatus.className = 'date-status';
             setDateStatus(false);

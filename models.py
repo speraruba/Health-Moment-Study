@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from services.time_service import current_utc_timestamp
+from services.time_service import current_utc_timestamp, normalize_calendar_date_timestamp
 
 
 @dataclass
@@ -24,13 +24,13 @@ class User:
             id=row.get('id'),
             user_id=row.get('user_id', ''),
             username=row.get('username', ''),
-            start_date=row.get('start_date') or current_utc_timestamp(),
+            start_date=normalize_calendar_date_timestamp(row.get('start_date')) or current_utc_timestamp(),
             start_date_central_time=row.get('start_date_central_time'),
             screening_completed=bool(row.get('screening_completed')),
             baseline_completed=bool(row.get('baseline_completed')),
             screening_id=row.get('screening_id'),
             baseline_id=row.get('baseline_id'),
-            calendar_start_date=row.get('calendar_start_date'),
+            calendar_start_date=normalize_calendar_date_timestamp(row.get('calendar_start_date')),
         )
 
 

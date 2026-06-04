@@ -6,7 +6,7 @@ from mysql.connector import errorcode
 from dotenv import load_dotenv
 
 from models import User
-from services.time_service import central_datetime_string, current_utc_timestamp
+from services.time_service import central_date_string, central_datetime_string, current_utc_timestamp
 
 load_dotenv()
 
@@ -238,9 +238,15 @@ def update_user_survey_status(user_id, survey_type, status, response_id):
 
 
 def update_calendar_start_date(user_id, calendar_start_date):
+    column = fetch_one("SHOW COLUMNS FROM users LIKE %s", ("calendar_start_date",))
+    column_type = str(column.get('Type', '')).lower() if column else ''
+    stored_value = calendar_start_date
+    if column_type.startswith('date'):
+        stored_value = central_date_string(calendar_start_date)
+
     execute(
         "UPDATE users SET calendar_start_date = %s WHERE user_id = %s",
-        (calendar_start_date, user_id),
+        (stored_value, user_id),
     )
     return get_user_by_id(user_id)
 
