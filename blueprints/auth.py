@@ -75,52 +75,6 @@ def user_exists():
     return jsonify({"exists": exists}), 200
 
 
-@bp.route('/api/set-calendar-start-date', methods=['POST'])
-def set_calendar_start_date():
-    if 'user_id' not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    current_uid = session['user_id']
-    user = get_user_by_id(current_uid)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    data = request.get_json()
-    if not data or 'calendar_start_date' not in data:
-        return jsonify({"error": "calendar_start_date is required"}), 400
-
-    calendar_start_date_str = data.get('calendar_start_date', '').strip()
-
-    try:
-        date_obj = datetime.strptime(calendar_start_date_str, '%Y-%m-%d')
-        calendar_start_date = central_date_to_utc_timestamp(date_obj.date())
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
-
-    today_ts = central_date_to_utc_timestamp(central_today())
-
-    if calendar_start_date < today_ts:
-        return jsonify({"error": "Calendar start date must not be in the past"}), 400
-
-    try:
-        updated_user = update_calendar_start_date(current_uid, calendar_start_date)
-    except Exception:
-        logger.exception("Failed to save calendar start date for user_id=%s", current_uid)
-        return jsonify({
-            "error": "Failed to save calendar start date. Check server logs and database schema."
-        }), 500
-
-    if not updated_user or not updated_user.calendar_start_date:
-        return jsonify({"error": "Calendar start date was not saved"}), 500
-
-    sync_pending_baseline_session(updated_user)
-    return jsonify({
-        "success": True,
-        "message": "Calendar start date updated successfully",
-        **build_baseline_status_payload(updated_user),
-    }), 200
-
-
 @bp.route('/baseline-info', methods=['GET', 'POST'])
 def baseline_info():
     if 'user_id' not in session:
@@ -196,7 +150,6 @@ def baseline_info():
         user_id=current_uid,
         baseline_done=baseline_done,
         selected_calendar_date=selected_calendar_date,
-        date_saved=bool(user.calendar_start_date),
         all_done=all_done,
         error=error
     )
