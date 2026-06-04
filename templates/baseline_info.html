@@ -10,6 +10,7 @@
 <body class="page-baseline"
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
       data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}"
+      data-set-date-url="{{ url_for('auth.set_calendar_start_date') }}"
       data-dashboard-url="{{ url_for('dashboard.dashboard') }}">
 <div class="container">
     <header class="baseline-header">
@@ -59,7 +60,7 @@
                         <p>Your dashboard weeks will begin on this date.</p>
                     </div>
                     <span id="date-status-pill" class="status-pill {% if selected_calendar_date %}status-done{% else %}status-pending{% endif %}">
-                        {% if selected_calendar_date %}Selected{% else %}Pending{% endif %}
+                        {% if selected_calendar_date %}Saved{% else %}Pending{% endif %}
                     </span>
                 </div>
                 <label class="select-label" for="calendar-start-date">Start date</label>
@@ -95,6 +96,7 @@
     const dateStatusPill = document.getElementById('date-status-pill');
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
+    const setDateUrl = pageBody.dataset.setDateUrl;
     const dashboardUrl = pageBody.dataset.dashboardUrl;
     let stream = null;
     let statusPollTimer = null;
@@ -113,10 +115,11 @@
         continueBtn.classList.toggle('enabled', enabled);
     }
 
-    function setDateStatus(selected) {
-        dateStatusPill.textContent = selected ? 'Selected' : 'Pending';
-        dateStatusPill.classList.toggle('status-done', selected);
-        dateStatusPill.classList.toggle('status-pending', !selected);
+    function setDateStatus(state) {
+        const textMap = { pending: 'Pending', saving: 'Saving…', saved: 'Saved' };
+        dateStatusPill.textContent = textMap[state] || 'Pending';
+        dateStatusPill.classList.toggle('status-done', state === 'saved');
+        dateStatusPill.classList.toggle('status-pending', state !== 'saved');
     }
 
     function setSurveyLinkState(linkEl, done) {
@@ -193,14 +196,13 @@
         if (selectedCalendarDate) {
             calendarStartDateSelect.value = selectedCalendarDate;
             calendarStartDateValue.value = selectedCalendarDate;
-            setDateStatus(true);
+            setDateStatus(dateSaved ? 'saved' : 'pending');
         }
     }
 
     function updateContinueButtonState() {
         const isBaselineCompleted = baselineStatus.classList.contains('status-done');
-        const isDateSelected = !!selectedCalendarDate;
-        setContinueEnabled(isBaselineCompleted && isDateSelected);
+        setContinueEnabled(isBaselineCompleted && dateSaved);
     }
 
     function applyStatusUpdate(data) {
@@ -213,17 +215,16 @@
         }
         setStatus(baselineStatus, !!data.baseline_completed);
         setSurveyLinkState(baselineLink, !!data.baseline_completed);
-        if (data.calendar_start_date) {
+        if (data.calendar_start_date && !hasUnsavedDateSelection) {
             selectedCalendarDate = data.calendar_start_date;
             calendarStartDateValue.value = data.calendar_start_date;
             calendarStartDateSelect.value = data.calendar_start_date;
             dateSaved = true;
-            hasUnsavedDateSelection = false;
-            setDateStatus(true);
+            setDateStatus('saved');
         } else if (data.date_selected === false && !hasUnsavedDateSelection) {
             selectedCalendarDate = null;
             calendarStartDateValue.value = '';
-            setDateStatus(false);
+            setDateStatus('pending');
         }
         updateContinueButtonState();
         if (data.all_completed) {
@@ -281,26 +282,55 @@
     }
 
     populateDateSelect();
-    calendarStartDateSelect.addEventListener('change', (e) => {
+    calendarStartDateSelect.addEventListener('change', async (e) => {
         const selectedValue = e.target.value;
-        if (selectedValue) {
-            selectedCalendarDate = selectedValue;
-            calendarStartDateValue.value = selectedValue;
-            dateSaved = false;
-            hasUnsavedDateSelection = true;
-            dateSelectionStatus.textContent = '';
-            dateSelectionStatus.className = 'date-status';
-            setDateStatus(true);
-            updateContinueButtonState();
-        } else {
+        if (!selectedValue) {
             selectedCalendarDate = null;
             calendarStartDateValue.value = '';
+            dateSaved = false;
             hasUnsavedDateSelection = false;
             dateSelectionStatus.textContent = '';
             dateSelectionStatus.className = 'date-status';
-            setDateStatus(false);
+            setDateStatus('pending');
             updateContinueButtonState();
+            return;
         }
+
+        selectedCalendarDate = selectedValue;
+        calendarStartDateValue.value = selectedValue;
+        dateSaved = false;
+        hasUnsavedDateSelection = true;
+        dateSelectionStatus.textContent = '';
+        dateSelectionStatus.className = 'date-status';
+        setDateStatus('saving');
+        updateContinueButtonState();
+
+        try {
+            const response = await fetch(setDateUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ calendar_start_date: selectedValue })
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                dateSaved = true;
+                hasUnsavedDateSelection = false;
+                setDateStatus('saved');
+                dateSelectionStatus.textContent = '';
+                dateSelectionStatus.className = 'date-status';
+            } else {
+                dateSaved = false;
+                setDateStatus('pending');
+                dateSelectionStatus.textContent = data.error || 'Failed to save. Please try again.';
+                dateSelectionStatus.className = 'date-status date-error';
+            }
+        } catch (_) {
+            dateSaved = false;
+            setDateStatus('pending');
+            dateSelectionStatus.textContent = 'Failed to save. Please try again.';
+            dateSelectionStatus.className = 'date-status date-error';
+        }
+        updateContinueButtonState();
     });
 
     bootstrapStatus();
