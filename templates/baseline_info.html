@@ -8,6 +8,7 @@
 </head>
 
 <body class="page-baseline"
+      data-calendar-start-date-url="{{ url_for('auth.set_calendar_start_date') }}"
       data-baseline-status-url="{{ url_for('auth.baseline_status') }}"
       data-baseline-status-stream-url="{{ url_for('auth.baseline_status_stream') }}">
 <div class="container">
@@ -89,6 +90,7 @@
     const calendarStartDateSelect = document.getElementById('calendar-start-date');
     const dateSelectionStatus = document.getElementById('date-selection-status');
     const dateStatusPill = document.getElementById('date-status-pill');
+    const calendarStartDateUrl = pageBody.dataset.calendarStartDateUrl;
     const baselineStatusUrl = pageBody.dataset.baselineStatusUrl;
     const baselineStatusStreamUrl = pageBody.dataset.baselineStatusStreamUrl;
     let stream = null;
@@ -194,7 +196,7 @@
         try {
             dateSelectionStatus.textContent = '';
             dateSelectionStatus.className = 'date-status';
-            const response = await fetch('/api/set-calendar-start-date', {
+            const response = await fetch(calendarStartDateUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -203,12 +205,17 @@
                 body: JSON.stringify({ calendar_start_date: dateStr })
             });
 
-            if (response.status === 401 || response.status === 404) {
+            if (response.status === 401) {
                 window.location.reload();
                 return;
             }
 
-            const data = await response.json();
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
             if (response.ok) {
                 dateSelectionStatus.textContent = 'Date saved successfully.';
                 dateSelectionStatus.classList.add('date-success');
