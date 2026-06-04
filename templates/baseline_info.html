@@ -210,11 +210,9 @@
 
             const data = await response.json();
             if (response.ok) {
-                selectedCalendarDate = dateStr;
                 dateSelectionStatus.textContent = 'Date saved successfully.';
                 dateSelectionStatus.classList.add('date-success');
-                setDateStatus(true);
-                updateContinueButtonState();
+                applyStatusUpdate(data);
             } else {
                 dateSelectionStatus.textContent = 'Error: ' + (data.error || 'Failed to save date');
                 dateSelectionStatus.classList.add('date-error');
@@ -241,6 +239,14 @@
         }
         setStatus(baselineStatus, !!data.baseline_completed);
         setSurveyLinkState(baselineLink, !!data.baseline_completed);
+        if (data.calendar_start_date) {
+            selectedCalendarDate = data.calendar_start_date;
+            calendarStartDateSelect.value = data.calendar_start_date;
+            setDateStatus(true);
+        } else if (data.date_selected === false) {
+            selectedCalendarDate = null;
+            setDateStatus(false);
+        }
         updateContinueButtonState();
     }
 

@@ -100,11 +100,19 @@ def set_calendar_start_date():
     if calendar_start_date < today_ts:
         return jsonify({"error": "Calendar start date must not be in the past"}), 400
 
-    updated_user = update_calendar_start_date(current_uid, calendar_start_date)
+    try:
+        updated_user = update_calendar_start_date(current_uid, calendar_start_date)
+    except Exception:
+        return jsonify({"error": "Failed to save calendar start date"}), 500
+
+    if not updated_user or not updated_user.calendar_start_date:
+        return jsonify({"error": "Calendar start date was not saved"}), 500
+
+    sync_pending_baseline_session(updated_user)
     return jsonify({
         "success": True,
         "message": "Calendar start date updated successfully",
-        "calendar_start_date": updated_user.calendar_start_date
+        **build_baseline_status_payload(updated_user),
     }), 200
 
 
