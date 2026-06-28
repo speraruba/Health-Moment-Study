@@ -8,6 +8,7 @@ Flask web app for participant onboarding, baseline setup, Qualtrics survey links
 - Participant login with `Name + Participant ID`
 - Consent content shown on the login page
 - First-time participants must complete the Baseline survey and select a dashboard start date before entering Dashboard
+- The Start Date dropdown offers 5 options, from tomorrow (today + 1) through today + 5
 - Dashboard provides Morning and Moment Qualtrics survey links
 - Dashboard shows weekly Morning completion and Moment response counts
 - Qualtrics webhook updates survey completion data
@@ -164,6 +165,7 @@ python3 -m compileall app.py blueprints services models.py tests
 - 使用 `姓名 + Participant ID` 登录
 - 登录页展示 Consent 内容
 - 首次用户需要完成 Baseline 问卷并选择 Dashboard 起始日期，之后才能进入 Dashboard
+- Start Date 下拉框提供 5 个选项，从明天（today + 1）到 today + 5
 - Dashboard 提供 Morning 和 Moment 的 Qualtrics 问卷链接
 - Dashboard 展示每周 Morning 完成情况和 Moment 提交次数
 - Qualtrics webhook 写入问卷完成数据
